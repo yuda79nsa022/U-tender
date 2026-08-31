@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import type { Project } from "@/api/types";
 import { formatDeadline } from "@/lib/format";
+import { QueryError } from "@/components/QueryError";
 
 function badgeClasses(status: string) {
   switch (status) {
@@ -18,7 +19,11 @@ function badgeClasses(status: string) {
 }
 
 export function OwnerDashboardPage() {
-  const { data: projects } = useQuery({
+  const {
+    data: projects,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["owner-projects"],
     queryFn: () => apiFetch<Project[]>("/owner/projects"),
   });
@@ -37,7 +42,9 @@ export function OwnerDashboardPage() {
         </Link>
       </div>
 
-      {!projects?.length && (
+      {isError && <QueryError onRetry={() => refetch()} />}
+
+      {!isError && !projects?.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
           You haven't posted a project yet.{" "}
           <Link to="/owner/projects/new" className="text-navy underline">

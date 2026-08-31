@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import type { ContractorProfile } from "@/api/types";
 import { stars } from "@/lib/format";
+import { QueryError } from "@/components/QueryError";
 
 function statusBadge(status: string) {
   switch (status) {
@@ -18,7 +19,11 @@ function statusBadge(status: string) {
 }
 
 export function AdminContractorsPage() {
-  const { data: contractors } = useQuery({
+  const {
+    data: contractors,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["admin-contractors"],
     queryFn: () => apiFetch<ContractorProfile[]>("/admin/contractors"),
   });
@@ -31,7 +36,9 @@ export function AdminContractorsPage() {
         <p className="text-[13.5px] text-steel">{contractors?.length ?? 0} total. Edit details, change verification status, suspend, or delete.</p>
       </div>
 
-      {!contractors?.length ? (
+      {isError ? (
+        <QueryError onRetry={() => refetch()} />
+      ) : !contractors?.length ? (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">No contractors have signed up yet.</div>
       ) : (
         <table className="w-full border-collapse">

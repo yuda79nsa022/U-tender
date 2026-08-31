@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import type { ContractorDocument, ContractorProfile } from "@/api/types";
+import { PageLoading } from "@/components/PageLoading";
 
 function statusBadge(status: string) {
   switch (status) {
@@ -26,7 +27,7 @@ export function ContractorStatusPage() {
     enabled: !!profile,
   });
 
-  if (!profile) return null;
+  if (!profile) return <PageLoading />;
 
   if (profile.is_suspended) {
     return (

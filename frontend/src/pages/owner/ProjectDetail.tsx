@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, API_URL } from "@/api/client";
+import { apiFetch, ApiError, API_URL } from "@/api/client";
 import type { Offer, ProjectDetail } from "@/api/types";
 import { timeRemaining, stars } from "@/lib/format";
 import { RatingInput } from "@/components/RatingInput";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { PageLoading } from "@/components/PageLoading";
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.detail : fallback;
+}
 
 interface Review {
   id: string;
@@ -32,6 +38,8 @@ export function OwnerProjectDetailPage() {
   const queryClient = useQueryClient();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const drawingsFormRef = useRef<HTMLFormElement>(null);
 
   const { data: project } = useQuery({
     queryKey: ["project", id],
@@ -56,15 +64,22 @@ export function OwnerProjectDetailPage() {
   const approveMutation = useMutation({
     mutationFn: (offerId: string) => apiFetch(`/owner/projects/${id}/offers/${offerId}/approve`, { method: "POST" }),
     onSuccess: () => {
+      setError(null);
       queryClient.invalidateQueries({ queryKey: ["project", id] });
       queryClient.invalidateQueries({ queryKey: ["owner-offers", id] });
       queryClient.invalidateQueries({ queryKey: ["owner-projects"] });
     },
+    onError: (err) => setError(errorMessage(err, "Could not approve this offer.")),
   });
 
   const addDrawingsMutation = useMutation({
     mutationFn: (formData: FormData) => apiFetch(`/projects/${id}/drawings`, { method: "POST", formData }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["project", id] }),
+    onSuccess: () => {
+      setError(null);
+      drawingsFormRef.current?.reset();
+      queryClient.invalidateQueries({ queryKey: ["project", id] });
+    },
+    onError: (err) => setError(errorMessage(err, "Could not add drawings.")),
   });
 
   const reviewMutation = useMutation({
@@ -73,10 +88,14 @@ export function OwnerProjectDetailPage() {
         method: "POST",
         body: { project_id: id, contractor_id: approvedOffer?.contractor_id, rating, comment: comment || null },
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["owner-review", id] }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["owner-review", id] });
+    },
+    onError: (err) => setError(errorMessage(err, "Could not submit review.")),
   });
 
-  if (!project) return null;
+  if (!project) return <PageLoading />;
 
   const deadlinePassed = new Date(project.bid_deadline) < new Date();
 
@@ -92,6 +111,8 @@ export function OwnerProjectDetailPage() {
           {project.status}
         </span>
       </div>
+
+      <ErrorBanner message={error} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6 items-start">
         <div>
@@ -122,11 +143,10 @@ export function OwnerProjectDetailPage() {
           )}
 
           <form
+            ref={drawingsFormRef}
             onSubmit={(e) => {
               e.preventDefault();
-              const form = new FormData(e.currentTarget);
-              addDrawingsMutation.mutate(form);
-              e.currentTarget.reset();
+              addDrawingsMutation.mutate(new FormData(e.currentTarget));
             }}
             className="mt-3.5 flex items-center gap-2"
           >

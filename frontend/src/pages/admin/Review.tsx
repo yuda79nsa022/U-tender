@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorProfile, DocumentStatus } from "@/api/types";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { QueryError } from "@/components/QueryError";
 
 interface QueueDocument {
   id: string;
@@ -34,15 +36,23 @@ function statusBadge(status: string) {
 export function AdminReviewPage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: queue } = useQuery({
+  const {
+    data: queue,
+    isError: queueError,
+    refetch: refetchQueue,
+  } = useQuery({
     queryKey: ["admin-review-queue"],
     queryFn: () => apiFetch<QueueEntry[]>("/admin/review/queue"),
   });
 
   const invalidate = () => {
+    setError(null);
     queryClient.invalidateQueries({ queryKey: ["admin-review-queue"] });
   };
+  const onMutationError = (err: unknown, fallback: string) =>
+    setError(err instanceof ApiError ? err.detail : fallback);
 
   const decisionMutation = useMutation({
     mutationFn: (vars: { contractorId: string; requirementId: string; decision: "approved" | "rejected"; note?: string }) =>
@@ -51,16 +61,19 @@ export function AdminReviewPage() {
         body: { contractor_id: vars.contractorId, requirement_id: vars.requirementId, decision: vars.decision, note: vars.note ?? null },
       }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not record that decision."),
   });
 
   const approveMutation = useMutation({
     mutationFn: (contractorId: string) => apiFetch(`/admin/review/contractors/${contractorId}/approve`, { method: "POST" }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not approve this contractor."),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (contractorId: string) => apiFetch(`/admin/review/contractors/${contractorId}/reject`, { method: "POST" }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not reject this application."),
   });
 
   const active = selectedId ?? queue?.[0]?.contractor.user_id ?? null;
@@ -78,7 +91,11 @@ export function AdminReviewPage() {
         <p className="text-[13.5px] text-steel">{queue?.length ?? 0} pending review{queue?.length === 1 ? "" : "s"}.</p>
       </div>
 
-      {!queue?.length ? (
+      <ErrorBanner message={error} />
+
+      {queueError ? (
+        <QueryError onRetry={() => refetchQueue()} />
+      ) : !queue?.length ? (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">No applications waiting on review.</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[.9fr_1.6fr] gap-5 items-start">

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorProfile } from "@/api/types";
+import { PageLoading } from "@/components/PageLoading";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 const FEATURES = [
   "Unlimited open projects in your service area",
@@ -90,9 +92,10 @@ export function ContractorSubscribePage() {
     onSuccess: (data) => {
       window.location.href = data.url;
     },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not open billing portal. Try again."),
   });
 
-  if (!profile) return null;
+  if (!profile) return <PageLoading />;
 
   const isActive = profile.subscription_status === "active" || profile.subscription_status === "trialing";
 
@@ -102,7 +105,7 @@ export function ContractorSubscribePage() {
       <h1 className="font-display text-2xl font-semibold text-navy mb-1">{isActive ? "Your subscription" : "Subscribe to bid on projects"}</h1>
       <p className="text-[13.5px] text-steel mb-7">{isActive ? "Manage your plan and billing details." : "One plan, full access. Cancel any time."}</p>
 
-      {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2.5 mb-5 max-w-2xl">{error}</p>}
+      <ErrorBanner message={error} />
 
       {isActive ? (
         <div className="bg-white border border-border border-t-4 border-t-green rounded px-7 py-7 max-w-md">

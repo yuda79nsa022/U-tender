@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import { useAuth, type UserRole } from "@/auth/AuthContext";
+import { PageLoading } from "@/components/PageLoading";
 
 interface ContractorProfile {
   verification_status: string;
@@ -31,12 +32,12 @@ export function ProtectedRoute({
     enabled: gate && !!user && user.role === "contractor",
   });
 
-  if (loading) return null;
+  if (loading) return <PageLoading />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to="/" replace />;
 
   if (gate && role === "contractor") {
-    if (profileLoading) return null;
+    if (profileLoading) return <PageLoading />;
     if (!profile || profile.verification_status !== "approved" || profile.is_suspended) {
       return <Navigate to="/contractor/status" replace />;
     }

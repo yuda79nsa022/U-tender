@@ -22,6 +22,11 @@ def get_current_user(
     user_id = decode_token(access_token, expected_type="access")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    # Access tokens aren't checked against the revocation table here — only
+    # the long-lived refresh token is (see /auth/refresh, /auth/logout).
+    # Access tokens are short-lived (JWT_ACCESS_TTL_MINUTES, 30min default)
+    # by design specifically so this per-request check can skip a DB hit;
+    # logout closes the loop within one access-token lifetime at most.
 
     user = db.get(User, user_id)
     if not user:

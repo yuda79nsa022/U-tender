@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorDocument, DocumentRequirement } from "@/api/types";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 export function ContractorVerifyPage() {
   const navigate = useNavigate();
@@ -26,7 +27,11 @@ export function ContractorVerifyPage() {
       form.append("file", file);
       return apiFetch(`/contractor/documents/${requirementId}/upload`, { method: "POST", formData: form });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contractor-documents"] }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["contractor-documents"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not upload document."),
   });
 
   const submitMutation = useMutation({
@@ -52,7 +57,7 @@ export function ContractorVerifyPage() {
       <h1 className="font-display text-2xl font-semibold text-navy mb-2">Verify your company</h1>
       <p className="text-sm text-steel mb-8">Submit the documents below so a site admin can activate your account.</p>
 
-      {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2.5 mb-4 max-w-md">{error}</p>}
+      <ErrorBanner message={error} />
 
       <form onSubmit={handleSubmit} className="mb-10 grid gap-4 max-w-md">
         <div>
@@ -108,8 +113,12 @@ export function ContractorVerifyPage() {
           </tbody>
         </table>
 
-        <button type="submit" className="mt-4 bg-amber hover:bg-amber-dark text-white font-semibold text-sm rounded px-5 py-2.5 w-fit">
-          Submit for review
+        <button
+          type="submit"
+          disabled={submitMutation.isPending}
+          className="mt-4 bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit"
+        >
+          {submitMutation.isPending ? "Submitting…" : "Submit for review"}
         </button>
       </form>
     </main>

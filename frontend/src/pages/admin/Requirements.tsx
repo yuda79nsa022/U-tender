@@ -1,20 +1,32 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { DocumentRequirement } from "@/api/types";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { QueryError } from "@/components/QueryError";
 
 export function AdminRequirementsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isRequired, setIsRequired] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: requirements } = useQuery({
+  const {
+    data: requirements,
+    isError: requirementsError,
+    refetch: refetchRequirements,
+  } = useQuery({
     queryKey: ["admin-requirements"],
     queryFn: () => apiFetch<DocumentRequirement[]>("/admin/requirements"),
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-requirements"] });
+  const invalidate = () => {
+    setError(null);
+    queryClient.invalidateQueries({ queryKey: ["admin-requirements"] });
+  };
+  const onMutationError = (err: unknown, fallback: string) =>
+    setError(err instanceof ApiError ? err.detail : fallback);
 
   const addMutation = useMutation({
     mutationFn: () => apiFetch("/admin/requirements", { method: "POST", body: { name, description: description || null, is_required: isRequired } }),
@@ -24,17 +36,20 @@ export function AdminRequirementsPage() {
       setIsRequired(true);
       invalidate();
     },
+    onError: (err) => onMutationError(err, "Could not add requirement."),
   });
 
   const toggleRequiredMutation = useMutation({
     mutationFn: ({ id, value }: { id: string; value: boolean }) =>
       apiFetch(`/admin/requirements/${id}`, { method: "PATCH", body: { is_required: value } }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not update requirement."),
   });
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/admin/requirements/${id}`, { method: "PATCH", body: { is_active: false } }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not remove requirement."),
   });
 
   const active = requirements?.filter((r) => r.is_active) ?? [];
@@ -47,6 +62,9 @@ export function AdminRequirementsPage() {
         Turn requirements on or off, or remove one entirely. Changes apply to new submissions right away —
         contractors already approved aren't affected.
       </p>
+
+      <ErrorBanner message={error} />
+      {requirementsError && <QueryError onRetry={() => refetchRequirements()} />}
 
       <div className="space-y-2.5">
         {active.map((req) => (

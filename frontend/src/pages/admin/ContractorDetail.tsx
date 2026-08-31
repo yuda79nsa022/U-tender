@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorProfile } from "@/api/types";
 import { stars } from "@/lib/format";
 import { DeleteContractorForm } from "@/components/DeleteContractorForm";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { PageLoading } from "@/components/PageLoading";
 
 const STATUS_OPTIONS = ["incomplete", "pending_review", "changes_requested", "approved"] as const;
 
@@ -25,6 +27,7 @@ export function AdminContractorDetailPage() {
   const [primaryTrade, setPrimaryTrade] = useState("");
   const [serviceArea, setServiceArea] = useState("");
   const [statusValue, setStatusValue] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contractor) return;
@@ -36,9 +39,12 @@ export function AdminContractorDetailPage() {
   }, [contractor?.user_id]);
 
   const invalidate = () => {
+    setError(null);
     queryClient.invalidateQueries({ queryKey: ["admin-contractor", id] });
     queryClient.invalidateQueries({ queryKey: ["admin-contractors"] });
   };
+  const onMutationError = (err: unknown, fallback: string) =>
+    setError(err instanceof ApiError ? err.detail : fallback);
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -47,19 +53,22 @@ export function AdminContractorDetailPage() {
         body: { company_name: companyName, license_number: licenseNumber || null, primary_trade: primaryTrade || null, service_area: serviceArea || null },
       }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not save changes."),
   });
 
   const statusMutation = useMutation({
     mutationFn: () => apiFetch(`/admin/contractors/${id}/verification-status`, { method: "POST", body: { status: statusValue } }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not update verification status."),
   });
 
   const suspendMutation = useMutation({
     mutationFn: () => apiFetch(`/admin/contractors/${id}/suspend`, { method: "POST", body: { suspended: !contractor?.is_suspended } }),
     onSuccess: invalidate,
+    onError: (err) => onMutationError(err, "Could not update account access."),
   });
 
-  if (!contractor) return null;
+  if (!contractor) return <PageLoading />;
 
   return (
     <main className="max-w-3xl mx-auto px-5 py-8">
@@ -74,6 +83,8 @@ export function AdminContractorDetailPage() {
         </div>
         {contractor.is_suspended && <span className="font-mono text-[10px] uppercase px-2.5 py-1 rounded-full bg-red-tint text-red">Suspended</span>}
       </div>
+
+      <ErrorBanner message={error} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 items-start">
         <form

@@ -125,6 +125,33 @@ signed-URL expiry tied to the bid deadline. Two things changed on purpose:
   and signup logs the user in immediately. Re-adding email verification is
   a reasonable follow-up but wasn't part of the stack change requested.
 
+## Security notes
+
+- **Sessions**: JWT access tokens (short-lived, default 30min) and refresh
+  tokens (default 30 days) in httpOnly cookies. `/auth/refresh` rotates the
+  refresh token and revokes the one just used; `/auth/logout` revokes
+  whichever refresh token the browser sent. Revoked jtis live in the
+  `revoked_tokens` table — nothing prunes rows past their own expiry yet,
+  so that table grows unbounded over time; a periodic cleanup job (delete
+  where `expires_at < now()`) is a reasonable follow-up before this sees
+  real traffic. Access tokens are *not* checked against that table on every
+  request (that would mean a DB hit per request) — logout is only
+  guaranteed to close a session within one access-token lifetime, not
+  instantly.
+- **Passwords**: bcrypt via passlib. Signup rejects passwords over 72 bytes
+  with a clear validation error rather than silently truncating (bcrypt's
+  own limit).
+- **Request size**: capped at `MAX_UPLOAD_MB` (default 50MB) by
+  `app/middleware.py`, checked against `Content-Length` before any body is
+  read into memory.
+- **No rate limiting** on `/auth/login` or `/auth/signup` yet — nothing here
+  slows down credential-stuffing or brute-force attempts beyond bcrypt's
+  own cost factor. Worth adding (e.g. a per-IP/per-email limiter) before
+  a public launch.
+- **Error responses** never echo exception internals: unhandled exceptions
+  are logged server-side and return a generic 500; the Stripe webhook
+  handler logs its own failures rather than reflecting them back to Stripe.
+
 ## Notes for whoever picks this up next
 
 - Document/drawing uploads should never be served from a public bucket or

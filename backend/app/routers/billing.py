@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 import stripe
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.deps import get_contractor_profile, require_contractor
+from app.deps import get_contractor_profile, require_approved_contractor
 from app.models.contractor import ContractorProfile
 from app.models.enums import SubscriptionStatus
 from app.models.user import User
@@ -14,11 +15,12 @@ from app.services.stripe_service import map_stripe_status
 
 router = APIRouter(tags=["billing"])
 settings = get_settings()
+logger = logging.getLogger("billing")
 
 
 @router.post("/billing/checkout-session")
 def create_checkout_session(
-    plan: str = "monthly", user: User = Depends(require_contractor), db: Session = Depends(get_db)
+    plan: str = "monthly", user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)
 ):
     price_id = settings.stripe_price_id_annual if plan == "annual" else settings.stripe_price_id_monthly
     if not price_id:
@@ -48,7 +50,7 @@ def create_checkout_session(
 
 
 @router.post("/billing/portal-session")
-def create_billing_portal_session(user: User = Depends(require_contractor), db: Session = Depends(get_db)):
+def create_billing_portal_session(user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
     cp = get_contractor_profile(user, db)
     if not cp.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No billing account yet — subscribe first.")
@@ -111,9 +113,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 db.commit()
         # Unhandled event types are expected — Stripe sends many more than
         # we act on. No-op is correct here.
-    except Exception as exc:
+    except Exception:
         # Return 500 so Stripe retries — better a duplicate delivery than a
-        # silently missed subscription state change.
-        raise HTTPException(status_code=500, detail=f"Internal error processing webhook: {exc}")
+        # silently missed subscription state change. Logged server-side
+        # only; the response never echoes exception internals back out.
+        logger.exception("failed to process stripe webhook event %s", event_type)
+        raise HTTPException(status_code=500, detail="Internal error processing webhook")
 
     return {"received": True}

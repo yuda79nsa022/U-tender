@@ -3,13 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import type { ContractorProfile, Project } from "@/api/types";
 import { formatDeadline, timeRemaining } from "@/lib/format";
+import { QueryError } from "@/components/QueryError";
 
 export function ContractorFeedPage() {
   const { data: profile } = useQuery({
     queryKey: ["contractor-profile"],
     queryFn: () => apiFetch<ContractorProfile>("/contractor/profile"),
   });
-  const { data: projects } = useQuery({
+  const {
+    data: projects,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["contractor-feed"],
     queryFn: () => apiFetch<Project[]>("/contractor/feed"),
   });
@@ -33,7 +38,9 @@ export function ContractorFeedPage() {
         </div>
       )}
 
-      {!projects?.length && (
+      {isError && <QueryError onRetry={() => refetch()} />}
+
+      {!isError && !projects?.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
           No open projects right now. Check back soon.
         </div>

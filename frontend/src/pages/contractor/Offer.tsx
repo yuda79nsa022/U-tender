@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError, API_URL } from "@/api/client";
 import type { Offer, ProjectDetail } from "@/api/types";
 import { formatDeadline, timeRemaining } from "@/lib/format";
+import { PageLoading } from "@/components/PageLoading";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 export function ContractorOfferPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +49,11 @@ export function ContractorOfferPage() {
 
   const withdrawMutation = useMutation({
     mutationFn: () => apiFetch(`/projects/${id}/offers/withdraw`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-offer", id] }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["my-offer", id] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not withdraw offer."),
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -60,7 +66,7 @@ export function ContractorOfferPage() {
     }
   }
 
-  if (!project) return null;
+  if (!project) return <PageLoading />;
 
   const biddingClosed = project.status !== "open" || new Date(project.bid_deadline) < new Date();
 
@@ -113,7 +119,7 @@ export function ContractorOfferPage() {
         )}
       </div>
 
-      {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2.5 mb-5 max-w-2xl">{error}</p>}
+      <ErrorBanner message={error} />
 
       {biddingClosed ? (
         <div className="border border-dashed border-border rounded p-6 text-sm text-steel">
@@ -165,8 +171,13 @@ export function ContractorOfferPage() {
                 {existingOffer ? "Update offer" : "Submit offer"}
               </button>
               {existingOffer && existingOffer.status !== "withdrawn" && (
-                <button type="button" onClick={() => withdrawMutation.mutate()} className="text-xs text-red underline">
-                  Withdraw offer
+                <button
+                  type="button"
+                  onClick={() => withdrawMutation.mutate()}
+                  disabled={withdrawMutation.isPending}
+                  className="text-xs text-red underline disabled:opacity-60"
+                >
+                  {withdrawMutation.isPending ? "Withdrawing…" : "Withdraw offer"}
                 </button>
               )}
             </div>

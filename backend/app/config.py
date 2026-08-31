@@ -39,6 +39,10 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
+    # Matches the original app's raised Server Action body limit (25MB ->
+    # 50MB) to accommodate zipped folders of drawings.
+    max_upload_mb: int = 50
+
 
 @lru_cache
 def get_settings() -> Settings:
