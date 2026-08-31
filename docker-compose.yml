@@ -1,21 +1,47 @@
-# Runs the Next.js app itself in a container. This does NOT include
-# Supabase — run that separately with the Supabase CLI (`supabase start`),
-# which manages its own set of Docker containers for you. Point
-# .env.local at whichever Supabase you're using (local CLI or cloud
-# project) either way; this container just needs that file to exist.
 services:
-  app:
-    build: .
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: utender
+      MYSQL_USER: utender
+      MYSQL_PASSWORD: utender
+      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3000:3000"
+      - "3306:3306"
     volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "utender", "-putender"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
     env_file:
-      - .env.local
-    # If your Supabase is also running in Docker via `supabase start`,
-    # NEXT_PUBLIC_SUPABASE_URL in .env.local should point to
-    # http://host.docker.internal:54321 rather than localhost, since
-    # "localhost" inside this container refers to the container itself,
-    # not your host machine.
+      - ./backend/.env
+    environment:
+      DATABASE_URL: mysql+pymysql://utender:utender@mysql:3306/utender
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-storage:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  backend-storage:
