@@ -1,0 +1,21 @@
+# Runs the Next.js app itself in a container. This does NOT include
+# Supabase — run that separately with the Supabase CLI (`supabase start`),
+# which manages its own set of Docker containers for you. Point
+# .env.local at whichever Supabase you're using (local CLI or cloud
+# project) either way; this container just needs that file to exist.
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env.local
+    # If your Supabase is also running in Docker via `supabase start`,
+    # NEXT_PUBLIC_SUPABASE_URL in .env.local should point to
+    # http://host.docker.internal:54321 rather than localhost, since
+    # "localhost" inside this container refers to the container itself,
+    # not your host machine.
