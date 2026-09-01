@@ -35,6 +35,10 @@ def test_pass5_payment_gate():
         "/auth/signup", json={"email": "owner1@example.com", "password": "password123", "full_name": "Owner", "role": "owner"}
     )
     check("owner signup ok", r.status_code == 201)
+    from app.models.owner import OwnerProfile
+    from app.models.enums import VerificationStatus as OwnerVerificationStatus
+    db.get(OwnerProfile, r.json()["id"]).verification_status = OwnerVerificationStatus.approved
+    db.commit()
 
     contractor_client = TestClient(app)
     r = contractor_client.post(

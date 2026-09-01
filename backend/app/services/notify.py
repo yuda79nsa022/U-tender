@@ -76,6 +76,26 @@ _TEMPLATES: dict[NotificationType, dict[Language, tuple[str, str]]] = {
         Language.en: ("Bidding closes soon — {project_title}", "{project_title} stops accepting offers within 24 hours."),
         Language.ar: ("يغلق التقديم قريبًا — {project_title}", "سيتوقف {project_title} عن قبول العروض خلال 24 ساعة."),
     },
+    NotificationType.owner_verification_activated: {
+        Language.en: ("You're verified", "Your owner account has been approved."),
+        Language.ar: ("تم التحقق من حسابك", "تمت الموافقة على حساب المالك الخاص بك."),
+    },
+    NotificationType.owner_document_approved: {
+        Language.en: ("Document approved", "Your {requirement_name} document was approved."),
+        Language.ar: ("تمت الموافقة على المستند", "تمت الموافقة على مستند {requirement_name} الخاص بك."),
+    },
+    NotificationType.owner_document_rejected: {
+        Language.en: ("Document needs attention", "Your {requirement_name} document was rejected — please re-upload."),
+        Language.ar: ("المستند يحتاج إلى مراجعة", "تم رفض مستند {requirement_name} الخاص بك — يرجى إعادة الرفع."),
+    },
+    NotificationType.owner_suspended: {
+        Language.en: ("Account suspended", "Your account has been suspended by a site admin."),
+        Language.ar: ("تم تعليق الحساب", "تم تعليق حسابك من قبل مسؤول الموقع."),
+    },
+    NotificationType.owner_reactivated: {
+        Language.en: ("Account reactivated", "Your account has been reactivated."),
+        Language.ar: ("تم إعادة تفعيل الحساب", "تمت إعادة تفعيل حسابك."),
+    },
 }
 
 

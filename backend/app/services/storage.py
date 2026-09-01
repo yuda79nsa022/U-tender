@@ -120,6 +120,7 @@ class S3Storage(Storage):
         return {
             "project-drawings": settings.s3_bucket_drawings,
             "contractor-documents": settings.s3_bucket_documents,
+            "owner-documents": settings.s3_bucket_owner_documents,
         }.get(bucket, bucket)
 
     def _resolve_key(self, key: str) -> str:

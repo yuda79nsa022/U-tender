@@ -12,6 +12,8 @@ import { OwnerLayout } from "@/pages/owner/OwnerLayout";
 import { OwnerDashboardPage } from "@/pages/owner/Dashboard";
 import { OwnerProjectNewPage } from "@/pages/owner/ProjectNew";
 import { OwnerProjectDetailPage } from "@/pages/owner/ProjectDetail";
+import { OwnerVerifyPage } from "@/pages/owner/Verify";
+import { OwnerStatusPage } from "@/pages/owner/Status";
 import { ContractorLayout } from "@/pages/contractor/ContractorLayout";
 import { ContractorDashboardPage } from "@/pages/contractor/Dashboard";
 import { ContractorFeedPage } from "@/pages/contractor/Feed";
@@ -24,6 +26,9 @@ import { AdminRequirementsPage } from "@/pages/admin/Requirements";
 import { AdminReviewPage } from "@/pages/admin/Review";
 import { AdminContractorsPage } from "@/pages/admin/Contractors";
 import { AdminContractorDetailPage } from "@/pages/admin/ContractorDetail";
+import { AdminOwnersPage } from "@/pages/admin/Owners";
+import { AdminOwnerDetailPage } from "@/pages/admin/OwnerDetail";
+import { AdminOffersPage } from "@/pages/admin/Offers";
 import { AdminCmsPage } from "@/pages/admin/Cms";
 
 export function App() {
@@ -46,9 +51,29 @@ export function App() {
         />
 
         <Route
-          path="/owner"
+          path="/owner/verify"
           element={
             <ProtectedRoute role="owner">
+              <OwnerLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<OwnerVerifyPage />} />
+        </Route>
+        <Route
+          path="/owner/status"
+          element={
+            <ProtectedRoute role="owner">
+              <OwnerLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<OwnerStatusPage />} />
+        </Route>
+        <Route
+          path="/owner"
+          element={
+            <ProtectedRoute role="owner" gate>
               <OwnerLayout />
             </ProtectedRoute>
           }
@@ -113,6 +138,9 @@ export function App() {
           <Route path="review" element={<AdminReviewPage />} />
           <Route path="contractors" element={<AdminContractorsPage />} />
           <Route path="contractors/:id" element={<AdminContractorDetailPage />} />
+          <Route path="owners" element={<AdminOwnersPage />} />
+          <Route path="owners/:id" element={<AdminOwnerDetailPage />} />
+          <Route path="offers" element={<AdminOffersPage />} />
           <Route path="cms" element={<AdminCmsPage />} />
         </Route>
       </Routes>

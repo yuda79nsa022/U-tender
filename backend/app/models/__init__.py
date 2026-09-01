@@ -4,9 +4,10 @@ from app.models.award_record import AwardRecord
 from app.models.clarification import Clarification
 from app.models.cms_content import CmsContent
 from app.models.contractor import ContractorProfile
-from app.models.document import ContractorDocument, DocumentRequirement
+from app.models.document import ContractorDocument, DocumentRequirement, OwnerDocument
 from app.models.notification import Notification
 from app.models.offer import Offer, OfferRevision
+from app.models.owner import OwnerProfile
 from app.models.payment_override import PaymentOverride
 from app.models.project import Project, ProjectDrawing
 from app.models.project_amendment import ProjectAmendment
@@ -20,6 +21,8 @@ __all__ = [
     "ContractorProfile",
     "DocumentRequirement",
     "ContractorDocument",
+    "OwnerProfile",
+    "OwnerDocument",
     "Project",
     "ProjectDrawing",
     "ProjectAmendment",

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     s3_bucket_drawings: str = "project-drawings"
     s3_bucket_documents: str = "contractor-documents"
+    s3_bucket_owner_documents: str = "owner-documents"
     s3_region: str | None = None
     s3_endpoint_url: str | None = None  # set for MinIO / S3-compatible hosts
     s3_object_prefix: str = ""  # optional key prefix, e.g. "prod/" to share a bucket across environments

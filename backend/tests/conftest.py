@@ -85,3 +85,19 @@ def db():
         yield session
     finally:
         session.close()
+
+
+def approve_owner(db_session, owner_id: str) -> None:
+    """Test-only shortcut mirroring how Alembic migration 0005 grandfathers
+    every pre-existing owner in as approved: most tests just need "an
+    owner who can post a project" and don't care about the document-upload
+    path itself (that path has its own dedicated coverage in
+    test_owner_verification_and_admin.py) — this avoids repeating the
+    upload/submit/admin-approve dance in every test file that only needs
+    a working owner as a precondition for something else."""
+    from app.models.enums import VerificationStatus
+    from app.models.owner import OwnerProfile
+
+    profile = db_session.get(OwnerProfile, owner_id)
+    profile.verification_status = VerificationStatus.approved
+    db_session.commit()

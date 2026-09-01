@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -9,9 +10,12 @@ from app.deps import require_admin
 from app.models.audit_log import AuditLog
 from app.models.cms_content import CmsContent
 from app.models.contractor import ContractorProfile
-from app.models.document import ContractorDocument, DocumentRequirement
-from app.models.enums import DocumentStatus, Language, NotificationType, VerificationStatus
+from app.models.document import ContractorDocument, DocumentRequirement, OwnerDocument
+from app.models.enums import DocumentStatus, Language, NotificationType, UserRole, VerificationStatus
+from app.models.offer import Offer
+from app.models.owner import OwnerProfile
 from app.models.payment_override import PaymentOverride
+from app.models.project import Project
 from app.models.review import Review
 from app.models.user import User
 from app.schemas.cms import CmsContentOut, CmsContentUpsert
@@ -21,8 +25,11 @@ from app.schemas.document import (
     DocumentExpiryUpdate,
     DocumentRequirementCreate,
     DocumentRequirementOut,
+    OwnerDocumentOut,
     ReviewDocumentDecision,
+    ReviewOwnerDocumentDecision,
 )
+from app.schemas.owner import OwnerProfileOut
 from app.services.audit import log_action
 from app.services.notify import notify
 from app.services.storage import get_storage
@@ -45,6 +52,7 @@ def add_requirement(payload: DocumentRequirementCreate, admin: User = Depends(re
         name=payload.name.strip(),
         description=(payload.description or "").strip() or None,
         is_required=payload.is_required,
+        applies_to=payload.applies_to,
         created_by=admin.id,
     )
     db.add(req)
@@ -158,6 +166,7 @@ def review_document(payload: ReviewDocumentDecision, admin: User = Depends(requi
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
+    _get_active_contractor_profile(db, payload.contractor_id)
 
     doc.status = payload.decision
     doc.admin_note = (payload.note or "Document rejected — please re-upload.") if payload.decision == DocumentStatus.rejected else None
@@ -273,17 +282,35 @@ def reject_application(contractor_id: str, admin: User = Depends(require_admin),
 
 # ---------- contractor management ----------
 
+def _get_active_contractor_profile(db: Session, contractor_id: str) -> ContractorProfile:
+    """Same reasoning as _get_active_owner_profile below (defined once
+    OwnerProfile existed and this mirror was written to match): the
+    documented way to create an admin is to sign up as an owner OR
+    contractor and flip the role column, which leaves a real
+    contractor_profiles row behind for an account that's no longer a
+    contractor. Every mutation below goes through this instead of a bare
+    db.get(ContractorProfile, contractor_id)."""
+    cp = db.get(ContractorProfile, contractor_id)
+    user = db.get(User, contractor_id)
+    if not cp or not user or user.role != UserRole.contractor:
+        raise HTTPException(status_code=404, detail="Contractor not found.")
+    return cp
+
+
 @router.get("/contractors", response_model=list[ContractorProfileOut])
 def list_contractors(db: Session = Depends(get_db)):
-    rows = db.query(ContractorProfile, User).join(User, ContractorProfile.user_id == User.id).all()
+    rows = (
+        db.query(ContractorProfile, User)
+        .join(User, ContractorProfile.user_id == User.id)
+        .filter(User.role == UserRole.contractor)
+        .all()
+    )
     return [ContractorProfileOut(**_profile_fields(cp), email=u.email) for cp, u in rows]
 
 
 @router.get("/contractors/{contractor_id}")
 def contractor_detail(contractor_id: str, db: Session = Depends(get_db)):
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
     user = db.get(User, contractor_id)
     docs = (
         db.query(ContractorDocument, DocumentRequirement)
@@ -315,9 +342,7 @@ def contractor_detail(contractor_id: str, db: Session = Depends(get_db)):
 
 @router.patch("/contractors/{contractor_id}", response_model=ContractorProfileOut)
 def update_contractor(contractor_id: str, payload: ContractorProfileUpdate, db: Session = Depends(get_db)):
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
     if not payload.company_name.strip():
         raise HTTPException(status_code=400, detail="Company name is required.")
 
@@ -342,9 +367,7 @@ def set_verification_status(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
     previous = cp.verification_status.value
     cp.verification_status = payload.status
     db.commit()
@@ -372,9 +395,7 @@ def set_suspended(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
     previous = cp.is_suspended
     cp.is_suspended = payload.suspended
     db.commit()
@@ -418,9 +439,7 @@ def grant_payment_override(
     if not reason:
         raise HTTPException(status_code=400, detail="A reason is required to grant a payment override.")
 
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
 
     previous = cp.payment_override_active
     db.add(PaymentOverride(contractor_id=contractor_id, granted_by=admin.id, reason=reason))
@@ -456,9 +475,7 @@ def revoke_payment_override(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    cp = db.get(ContractorProfile, contractor_id)
-    if not cp:
-        raise HTTPException(status_code=404, detail="Contractor not found.")
+    cp = _get_active_contractor_profile(db, contractor_id)
 
     previous = cp.payment_override_active
     active = (
@@ -612,6 +629,8 @@ def reset_cms(key: str, language: Language, admin: User = Depends(require_admin)
 # foreign key. Suspend instead to preserve history while cutting access.
 @router.delete("/contractors/{contractor_id}", status_code=204)
 def delete_contractor(contractor_id: str, db: Session = Depends(get_db)):
+    _get_active_contractor_profile(db, contractor_id)  # 404s outright for a since-promoted admin account
+
     review_count = db.query(Review).filter(Review.contractor_id == contractor_id).count()
     if review_count > 0:
         raise HTTPException(
@@ -634,6 +653,298 @@ def delete_contractor(contractor_id: str, db: Session = Depends(get_db)):
     db.delete(user)  # cascades to contractor_profiles -> contractor_documents/offers
     db.commit()
     return None
+
+
+# ---------- owner management (mirrors the contractor management section
+# above: list/detail, document review, verification approve/reject,
+# suspend, delete) ----------
+
+def _owner_fields(op: OwnerProfile, user: User | None) -> dict:
+    return dict(
+        user_id=op.user_id,
+        verification_status=op.verification_status,
+        is_suspended=op.is_suspended,
+        marketplace_status=op.marketplace_status,
+        created_at=op.created_at,
+        email=user.email if user else None,
+        full_name=user.full_name if user else None,
+    )
+
+
+def _get_active_owner_profile(db: Session, owner_id: str) -> OwnerProfile:
+    """Looks up an OwnerProfile, but only for a user whose CURRENT role is
+    still owner (see list_owners' comment above for why this matters: an
+    admin created via the documented "sign up as owner, flip the role"
+    path still has a real owner_profiles row underneath). Every owner
+    mutation endpoint below goes through this rather than a bare
+    db.get(OwnerProfile, owner_id), so none of them can act on a
+    since-promoted account."""
+    op = db.get(OwnerProfile, owner_id)
+    user = db.get(User, owner_id)
+    if not op or not user or user.role != UserRole.owner:
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    return op
+
+
+def _owner_documents(db: Session, owner_id: str) -> list[OwnerDocumentOut]:
+    rows = (
+        db.query(OwnerDocument, DocumentRequirement)
+        .join(DocumentRequirement, OwnerDocument.requirement_id == DocumentRequirement.id)
+        .filter(OwnerDocument.owner_id == owner_id)
+        .all()
+    )
+    return [
+        OwnerDocumentOut(
+            id=d.id,
+            owner_id=d.owner_id,
+            requirement_id=d.requirement_id,
+            status=d.status,
+            admin_note=d.admin_note,
+            reviewed_at=d.reviewed_at,
+            submitted_at=d.submitted_at,
+            expires_on=d.expires_on,
+            requirement_name=r.name,
+            requirement_description=r.description,
+            requirement_is_required=r.is_required,
+            requirement_effective_from=r.effective_from,
+        )
+        for d, r in rows
+    ]
+
+
+@router.get("/owners", response_model=list[OwnerProfileOut])
+def list_owners(db: Session = Depends(get_db)):
+    # Filtered to users whose CURRENT role is still owner: the documented
+    # way to create an admin account is to sign up as an owner (or
+    # contractor) and flip that row's role in the database (see README's
+    # "Create your first admin"), which leaves a real owner_profiles row
+    # behind for an account that is no longer an owner. Without this
+    # filter, every admin created that way would show up in this list and
+    # be manageable as if they were a property owner.
+    rows = (
+        db.query(OwnerProfile, User)
+        .join(User, OwnerProfile.user_id == User.id)
+        .filter(User.role == UserRole.owner)
+        .all()
+    )
+    project_counts = dict(db.query(Project.owner_id, func.count(Project.id)).group_by(Project.owner_id).all())
+    return [
+        OwnerProfileOut(**_owner_fields(op, u), project_count=project_counts.get(op.user_id, 0)) for op, u in rows
+    ]
+
+
+@router.get("/owners/{owner_id}")
+def owner_detail(owner_id: str, db: Session = Depends(get_db)):
+    op = db.get(OwnerProfile, owner_id)
+    user = db.get(User, owner_id)
+    if not op or not user or user.role != UserRole.owner:
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    project_count = db.query(Project).filter(Project.owner_id == owner_id).count()
+    return {
+        "owner": OwnerProfileOut(**_owner_fields(op, user), project_count=project_count),
+        "documents": _owner_documents(db, owner_id),
+    }
+
+
+@router.post("/review/owner-documents", response_model=OwnerDocumentOut)
+def review_owner_document(
+    payload: ReviewOwnerDocumentDecision, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    doc = (
+        db.query(OwnerDocument)
+        .filter(OwnerDocument.owner_id == payload.owner_id, OwnerDocument.requirement_id == payload.requirement_id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    _get_active_owner_profile(db, payload.owner_id)
+
+    doc.status = payload.decision
+    doc.admin_note = (payload.note or "Document rejected — please re-upload.") if payload.decision == DocumentStatus.rejected else None
+    doc.reviewed_by = admin.id
+    doc.reviewed_at = datetime.utcnow()
+    if payload.decision == DocumentStatus.approved:
+        doc.expires_on = payload.expires_on
+    db.commit()
+
+    if payload.decision == DocumentStatus.rejected:
+        op = db.get(OwnerProfile, payload.owner_id)
+        if op:
+            op.verification_status = VerificationStatus.changes_requested
+            db.commit()
+
+    requirement = db.get(DocumentRequirement, payload.requirement_id)
+    owner_user = db.get(User, payload.owner_id)
+    if owner_user and requirement and payload.decision in (DocumentStatus.approved, DocumentStatus.rejected):
+        notification_type = (
+            NotificationType.owner_document_approved
+            if payload.decision == DocumentStatus.approved
+            else NotificationType.owner_document_rejected
+        )
+        notify(db, owner_user, notification_type, link="/owner/status", requirement_name=requirement.name)
+
+    db.refresh(doc)
+    return doc
+
+
+@router.post("/review/owners/{owner_id}/approve", response_model=OwnerProfileOut)
+def approve_owner(owner_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    op = _get_active_owner_profile(db, owner_id)
+
+    docs = (
+        db.query(OwnerDocument, DocumentRequirement)
+        .join(DocumentRequirement, OwnerDocument.requirement_id == DocumentRequirement.id)
+        .filter(OwnerDocument.owner_id == owner_id)
+        .all()
+    )
+    missing_approval = any(r.is_required and d.status != DocumentStatus.approved for d, r in docs)
+    if missing_approval:
+        raise HTTPException(status_code=400, detail="All required documents must be approved before approving this owner.")
+
+    previous = op.verification_status.value
+    op.verification_status = VerificationStatus.approved
+    db.commit()
+    db.refresh(op)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="owner_verification_status.set",
+        target_type="owner_profile",
+        target_id=owner_id,
+        previous_value=previous,
+        new_value=VerificationStatus.approved.value,
+    )
+    owner_user = db.get(User, owner_id)
+    if owner_user:
+        notify(db, owner_user, NotificationType.owner_verification_activated, link="/owner/dashboard")
+    return OwnerProfileOut(**_owner_fields(op, owner_user))
+
+
+@router.post("/review/owners/{owner_id}/reject", response_model=OwnerProfileOut)
+def reject_owner_application(owner_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    op = _get_active_owner_profile(db, owner_id)
+    previous = op.verification_status.value
+    op.verification_status = VerificationStatus.changes_requested
+    db.commit()
+    db.refresh(op)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="owner_verification_status.set",
+        target_type="owner_profile",
+        target_id=owner_id,
+        previous_value=previous,
+        new_value=VerificationStatus.changes_requested.value,
+    )
+    user = db.get(User, owner_id)
+    return OwnerProfileOut(**_owner_fields(op, user))
+
+
+class OwnerSuspendPatch(BaseModel):
+    suspended: bool
+
+
+@router.post("/owners/{owner_id}/suspend", response_model=OwnerProfileOut)
+def set_owner_suspended(
+    owner_id: str, payload: OwnerSuspendPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    op = _get_active_owner_profile(db, owner_id)
+    previous = op.is_suspended
+    op.is_suspended = payload.suspended
+    db.commit()
+    db.refresh(op)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="owner.suspend" if payload.suspended else "owner.reactivate",
+        target_type="owner_profile",
+        target_id=owner_id,
+        previous_value=str(previous),
+        new_value=str(payload.suspended),
+    )
+    owner_user = db.get(User, owner_id)
+    if owner_user:
+        notify(
+            db,
+            owner_user,
+            NotificationType.owner_suspended if payload.suspended else NotificationType.owner_reactivated,
+            link="/owner/dashboard",
+        )
+    return OwnerProfileOut(**_owner_fields(op, owner_user))
+
+
+# Permanently removes the owner's account. Unlike delete_contractor
+# (which only cascades to that contractor's own documents/offers —
+# projects and other bidders' data are untouched), projects.owner_id has
+# ON DELETE CASCADE: deleting an owner would silently wipe every project
+# they ever posted, including drawings, clarifications, and every
+# CONTRACTOR'S offers/reviews on those projects — data that belongs to
+# other users, not just this owner. That blast radius is too large for a
+# routine "remove this account" action, so deletion is blocked outright
+# once the owner has posted anything; suspend instead.
+@router.delete("/owners/{owner_id}", status_code=204)
+def delete_owner(owner_id: str, db: Session = Depends(get_db)):
+    _get_active_owner_profile(db, owner_id)  # 404s outright for a since-promoted admin account
+
+    project_count = db.query(Project).filter(Project.owner_id == owner_id).count()
+    if project_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="This owner has posted projects. Suspend the account instead of deleting it, to keep that project and offer history intact for the contractors involved.",
+        )
+
+    docs_with_files = (
+        db.query(OwnerDocument.file_path)
+        .filter(OwnerDocument.owner_id == owner_id, OwnerDocument.file_path.isnot(None))
+        .all()
+    )
+    paths = [p[0] for p in docs_with_files if p[0]]
+    if paths:
+        get_storage().delete("owner-documents", paths)
+
+    user = db.get(User, owner_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    db.delete(user)  # cascades to owner_profiles -> owner_documents
+    db.commit()
+    return None
+
+
+# ---------- all offers, across every project (platform-wide operational
+# visibility for admins) — unlike the owner-facing endpoint this doesn't
+# redact sealed-and-still-open bids: the sealed-tender rule exists to stop
+# the AWARDING party from favoring a bidder they recognize, a concern that
+# doesn't apply to the platform operator, who can already see the award
+# record and audit log for any project regardless of seal status. ----------
+
+@router.get("/offers")
+def list_all_offers(db: Session = Depends(get_db)):
+    rows = (
+        db.query(Offer, Project, ContractorProfile)
+        .join(Project, Offer.project_id == Project.id)
+        .outerjoin(ContractorProfile, Offer.contractor_id == ContractorProfile.user_id)
+        .order_by(Offer.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": o.id,
+            "project_id": p.id,
+            "project_title": p.title,
+            "project_status": p.status,
+            "tender_type": p.tender_type,
+            "contractor_id": o.contractor_id,
+            "contractor_company_name": cp.company_name if cp else None,
+            "amount": str(o.amount) if o.amount is not None else None,
+            "timeline_estimate": o.timeline_estimate,
+            "status": o.status,
+            "revision": o.revision,
+            "created_at": o.created_at,
+            "updated_at": o.updated_at,
+        }
+        for o, p, cp in rows
+    ]
 
 
 def _profile_fields(cp: ContractorProfile) -> dict:

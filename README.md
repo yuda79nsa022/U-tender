@@ -57,7 +57,11 @@ startup, and serves the API on `http://localhost:8000` and the frontend on
    ```
 4. **Create your first admin:** sign up normally through the app (as an
    owner or contractor), then update that row's `role` column to `admin`
-   directly in MySQL. There's no self-serve admin signup by design.
+   directly in MySQL. There's no self-serve admin signup by design. (The
+   `owner_profiles`/`contractor_profiles` row created at signup stays
+   behind on that account — harmless, and every admin list/detail
+   endpoint filters by the user's *current* role, so a promoted admin
+   never shows up as a manageable owner or contractor.)
 
 ## Running tests
 

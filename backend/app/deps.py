@@ -5,6 +5,7 @@ from app.auth.security import decode_token
 from app.db import get_db
 from app.models.contractor import ContractorProfile
 from app.models.enums import UserRole
+from app.models.owner import OwnerProfile
 from app.models.user import User
 
 
@@ -90,4 +91,25 @@ def get_contractor_profile(user: User, db: Session) -> ContractorProfile:
     profile = db.get(ContractorProfile, user.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contractor profile not found")
+    return profile
+
+
+# Owner-side mirror of require_approved_contractor: an owner must be
+# document-verified and not suspended before posting or managing a
+# project. Re-derived every request, same reasoning as the contractor
+# gate — an admin can flip either flag at any time.
+def require_verified_owner(user: User = Depends(require_owner), db: Session = Depends(get_db)) -> User:
+    profile = db.get(OwnerProfile, user.id)
+    if not profile or not profile.is_verified_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="not_approved",  # frontend redirects to /owner/status on this code
+        )
+    return user
+
+
+def get_owner_profile(user: User, db: Session) -> OwnerProfile:
+    profile = db.get(OwnerProfile, user.id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner profile not found")
     return profile

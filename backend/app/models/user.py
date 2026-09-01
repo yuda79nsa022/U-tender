@@ -27,3 +27,6 @@ class User(Base):
     contractor_profile = relationship(
         "ContractorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
+    owner_profile = relationship(
+        "OwnerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )

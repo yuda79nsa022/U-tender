@@ -8,7 +8,7 @@ from app.db import get_db
 from app.deps import get_contractor_profile, get_current_user, require_approved_contractor, require_contractor
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement
-from app.models.enums import DocumentStatus, ProjectStatus, VerificationStatus
+from app.models.enums import DocumentStatus, ProjectStatus, UserRole, VerificationStatus
 from app.models.offer import Offer
 from app.models.project import Project
 from app.models.user import User
@@ -27,7 +27,11 @@ router = APIRouter(prefix="/contractor", tags=["contractor"])
 # admin-only write endpoints under /admin/requirements.
 @router.get("/requirements", response_model=list[DocumentRequirementOut])
 def active_requirements(user: User = Depends(require_contractor), db: Session = Depends(get_db)):
-    return db.query(DocumentRequirement).filter(DocumentRequirement.is_active.is_(True)).all()
+    return (
+        db.query(DocumentRequirement)
+        .filter(DocumentRequirement.is_active.is_(True), DocumentRequirement.applies_to == UserRole.contractor)
+        .all()
+    )
 
 
 @router.get("/feed", response_model=list[ProjectOut])

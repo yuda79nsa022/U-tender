@@ -14,6 +14,7 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models.contractor import ContractorProfile
 from app.models.enums import AuthTokenType, UserRole
+from app.models.owner import OwnerProfile
 from app.models.revoked_token import RevokedToken
 from app.models.user import User
 from app.schemas.auth import (
@@ -27,7 +28,7 @@ from app.schemas.auth import (
 )
 from app.schemas.user import UserOut
 from app.services.auth_tokens import consume_token, issue_token
-from app.services.documents import ensure_document_rows
+from app.services.documents import ensure_document_rows, ensure_owner_document_rows
 from app.services.email import notify_password_reset, notify_verify_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -92,6 +93,10 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
         db.add(ContractorProfile(user_id=user.id, company_name=company_name))
         db.flush()
         ensure_document_rows(db, user.id)
+    elif payload.role == UserRole.owner:
+        db.add(OwnerProfile(user_id=user.id))
+        db.flush()
+        ensure_owner_document_rows(db, user.id)
 
     try:
         db.commit()

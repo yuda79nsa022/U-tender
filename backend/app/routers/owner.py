@@ -1,23 +1,29 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import require_owner
+from app.deps import get_owner_profile, require_owner
 from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
-from app.models.enums import NotificationType, OfferStatus, ProjectStatus
+from app.models.document import DocumentRequirement, OwnerDocument
+from app.models.enums import DocumentStatus, NotificationType, OfferStatus, ProjectStatus, UserRole, VerificationStatus
 from app.models.offer import Offer, OfferRevision
+from app.models.owner import OwnerProfile
 from app.models.project import Project
 from app.models.review import Review
 from app.models.user import User
+from app.schemas.document import DocumentRequirementOut, OwnerDocumentOut
 from app.schemas.offer import OfferOut, OfferRevisionOut
+from app.schemas.owner import OwnerProfileOut
 from app.schemas.project import ProjectOut
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.audit import log_action
 from app.services.email import notify_contractor_offer_decision
+from app.services.file_security import ALLOWED_DOCUMENT_EXTENSIONS, assert_allowed_extension, sanitize_path_segment
 from app.services.notify import notify
+from app.services.storage import get_storage
 from app.services.tender_lifecycle import is_sealed_and_open, sync_expired_projects
 
 router = APIRouter(prefix="/owner", tags=["owner"])
@@ -349,6 +355,132 @@ def submit_review(payload: ReviewCreate, user: User = Depends(require_owner), db
 
     db.refresh(review)
     return review
+
+
+# ---------- owner verification (mirrors the contractor document-review
+# flow in routers/contractor.py, scoped to DocumentRequirement.applies_to
+# == owner) ----------
+
+@router.get("/requirements", response_model=list[DocumentRequirementOut])
+def owner_active_requirements(user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    return (
+        db.query(DocumentRequirement)
+        .filter(DocumentRequirement.is_active.is_(True), DocumentRequirement.applies_to == UserRole.owner)
+        .all()
+    )
+
+
+def _owner_profile_out(op: OwnerProfile, user: User) -> OwnerProfileOut:
+    return OwnerProfileOut(
+        user_id=op.user_id,
+        verification_status=op.verification_status,
+        is_suspended=op.is_suspended,
+        marketplace_status=op.marketplace_status,
+        created_at=op.created_at,
+        email=user.email,
+        full_name=user.full_name,
+    )
+
+
+@router.get("/profile", response_model=OwnerProfileOut)
+def owner_verification_profile(user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    profile = get_owner_profile(user, db)
+    return _owner_profile_out(profile, user)
+
+
+@router.get("/documents", response_model=list[OwnerDocumentOut])
+def list_owner_documents(user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    rows = (
+        db.query(OwnerDocument, DocumentRequirement)
+        .join(DocumentRequirement, OwnerDocument.requirement_id == DocumentRequirement.id)
+        .filter(OwnerDocument.owner_id == user.id)
+        .all()
+    )
+    return [
+        OwnerDocumentOut(
+            id=d.id,
+            owner_id=d.owner_id,
+            requirement_id=d.requirement_id,
+            status=d.status,
+            admin_note=d.admin_note,
+            reviewed_at=d.reviewed_at,
+            submitted_at=d.submitted_at,
+            expires_on=d.expires_on,
+            requirement_name=r.name,
+            requirement_description=r.description,
+            requirement_is_required=r.is_required,
+            requirement_effective_from=r.effective_from,
+        )
+        for d, r in rows
+    ]
+
+
+@router.post("/documents/{requirement_id}/upload", response_model=OwnerDocumentOut)
+async def upload_owner_document(
+    requirement_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    doc = (
+        db.query(OwnerDocument)
+        .filter(OwnerDocument.owner_id == user.id, OwnerDocument.requirement_id == requirement_id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document requirement not found for this owner.")
+
+    assert_allowed_extension(file.filename, ALLOWED_DOCUMENT_EXTENSIONS)
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="No file provided.")
+
+    safe_name = sanitize_path_segment(file.filename)
+    path = f"{user.id}/{requirement_id}/{int(datetime.utcnow().timestamp() * 1000)}-{safe_name}"
+    get_storage().save("owner-documents", path, content, file.content_type or "application/octet-stream")
+
+    doc.file_path = path
+    doc.status = DocumentStatus.pending
+    doc.submitted_at = datetime.utcnow()
+    doc.admin_note = None
+    doc.expires_on = None
+    db.commit()
+    db.refresh(doc)
+
+    requirement = db.get(DocumentRequirement, requirement_id)
+    return OwnerDocumentOut(
+        id=doc.id,
+        owner_id=doc.owner_id,
+        requirement_id=doc.requirement_id,
+        status=doc.status,
+        admin_note=doc.admin_note,
+        reviewed_at=doc.reviewed_at,
+        submitted_at=doc.submitted_at,
+        expires_on=doc.expires_on,
+        requirement_name=requirement.name if requirement else None,
+        requirement_description=requirement.description if requirement else None,
+        requirement_is_required=requirement.is_required if requirement else None,
+        requirement_effective_from=requirement.effective_from if requirement else None,
+    )
+
+
+@router.post("/submit-for-review", response_model=OwnerProfileOut)
+def owner_submit_for_review(user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    docs = (
+        db.query(OwnerDocument, DocumentRequirement)
+        .join(DocumentRequirement, OwnerDocument.requirement_id == DocumentRequirement.id)
+        .filter(OwnerDocument.owner_id == user.id)
+        .all()
+    )
+    missing_required = any(r.is_required and d.status == DocumentStatus.not_submitted for d, r in docs)
+    if missing_required:
+        raise HTTPException(status_code=400, detail="All required documents must be uploaded before submitting for review.")
+
+    profile = get_owner_profile(user, db)
+    profile.verification_status = VerificationStatus.pending_review
+    db.commit()
+    db.refresh(profile)
+    return _owner_profile_out(profile, user)
 
 
 def _project_fields(p: Project) -> dict:

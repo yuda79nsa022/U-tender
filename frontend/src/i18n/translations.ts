@@ -331,13 +331,118 @@ export interface Dictionary {
       reviewError: string;
       statusError: string;
     };
+    verify: {
+      eyebrow: string;
+      heading: string;
+      description: string;
+      document: string;
+      statusCol: string;
+      required: string;
+      optional: string;
+      submitting: string;
+      submit: string;
+      uploadError: string;
+      submitError: string;
+    };
+    status: {
+      suspendedTitle: string;
+      suspendedBody: string;
+      approvedTitle: string;
+      approvedBody: string;
+      eyebrow: string;
+      heading: string;
+      changesRequestedTitle: string;
+      underReviewTitle: string;
+      submittedOn: string;
+      pending: string;
+      actionNeeded: string;
+      document: string;
+      statusCol: string;
+      required: string;
+      optional: string;
+      adminNote: string;
+      reupload: string;
+      upload: string;
+      footerNote: string;
+    };
   };
   admin: {
     nav: {
       requirements: string;
       review: string;
       contractors: string;
+      owners: string;
+      offers: string;
       cms: string;
+    };
+    owners: {
+      eyebrow: string;
+      heading: string;
+      total: string;
+      empty: string;
+      name: string;
+      status: string;
+      projects: string;
+      manage: string;
+    };
+    ownerDetail: {
+      docReviewError: string;
+      approveError: string;
+      rejectError: string;
+      suspendError: string;
+      deleteError: string;
+      suspended: string;
+      documentsHeading: string;
+      document: string;
+      statusCol: string;
+      approve: string;
+      reject: string;
+      applicationHeading: string;
+      currentStatus: string;
+      approveApplication: string;
+      requestChanges: string;
+      accessHeading: string;
+      reactivate: string;
+      suspend: string;
+      suspendedNote: string;
+      suspendNote: string;
+      dangerZone: string;
+      deleteBlockedNote: string;
+      deleteNote: string;
+      deleteConfirm: string;
+      deleteAccount: string;
+    };
+    offers: {
+      eyebrow: string;
+      heading: string;
+      total: string;
+      empty: string;
+      project: string;
+      contractor: string;
+      amount: string;
+      status: string;
+      tenderType: string;
+      submitted: string;
+      revised: string;
+    };
+    requirements: {
+      eyebrow: string;
+      heading: string;
+      description: string;
+      forContractors: string;
+      forOwners: string;
+      emptyForScope: string;
+      toggleRequiredFor: string;
+      required: string;
+      optional: string;
+      removeTitle: string;
+      namePlaceholder: string;
+      descriptionPlaceholder: string;
+      addForOwners: string;
+      addForContractors: string;
+      addError: string;
+      updateError: string;
+      removeError: string;
     };
   };
 }
@@ -699,13 +804,122 @@ export const en: Dictionary = {
       reviewError: "Could not submit review.",
       statusError: "Could not update this project's status.",
     },
+    verify: {
+      eyebrow: "Owner · Account verification",
+      heading: "Verify your account",
+      description: "Submit the documents below so a site admin can activate your account.",
+      document: "Document",
+      statusCol: "Status",
+      required: "Required",
+      optional: "Optional",
+      submitting: "Submitting…",
+      submit: "Submit for review",
+      uploadError: "Could not upload document.",
+      submitError: "Could not submit for review.",
+    },
+    status: {
+      suspendedTitle: "Account suspended",
+      suspendedBody:
+        "Your account has been suspended by a site admin. You can't post or manage projects while suspended. Contact support if you believe this is a mistake.",
+      approvedTitle: "You're approved",
+      approvedBody: "Head to your dashboard to post a project.",
+      eyebrow: "Owner · Account verification",
+      heading: "Application status",
+      changesRequestedTitle: "Changes requested — one or more documents need to be re-uploaded",
+      underReviewTitle: "Application under review",
+      submittedOn: "Submitted",
+      pending: "Pending",
+      actionNeeded: "Action needed",
+      document: "Document",
+      statusCol: "Status",
+      required: "Required",
+      optional: "Optional",
+      adminNote: "Admin note:",
+      reupload: "Re-upload",
+      upload: "Upload",
+      footerNote:
+        "You'll be notified as soon as your account is fully approved. Posting and managing projects stays locked until then.",
+    },
   },
   admin: {
     nav: {
       requirements: "Document requirements",
       review: "Review applications",
       contractors: "All contractors",
+      owners: "All owners",
+      offers: "All offers",
       cms: "Website content",
+    },
+    owners: {
+      eyebrow: "Admin · Owners",
+      heading: "All property owners",
+      total: "total",
+      empty: "No owners have signed up yet.",
+      name: "Name",
+      status: "Status",
+      projects: "Projects",
+      manage: "Manage",
+    },
+    ownerDetail: {
+      docReviewError: "Could not update this document.",
+      approveError: "Could not approve this owner.",
+      rejectError: "Could not request changes.",
+      suspendError: "Could not update account access.",
+      deleteError: "Could not delete this owner.",
+      suspended: "Suspended",
+      documentsHeading: "Verification documents",
+      document: "Document",
+      statusCol: "Status",
+      approve: "Approve",
+      reject: "Reject",
+      applicationHeading: "Application",
+      currentStatus: "Current status",
+      approveApplication: "Approve owner",
+      requestChanges: "Request changes",
+      accessHeading: "Account access",
+      reactivate: "Reactivate account",
+      suspend: "Suspend account",
+      suspendedNote: "This owner can't post or manage projects until reactivated.",
+      suspendNote: "Immediately blocks the owner from posting or managing projects, without deleting anything.",
+      dangerZone: "Danger zone",
+      deleteBlockedNote:
+        "This owner has posted projects. Suspend the account instead of deleting it, to keep that project and offer history intact for the contractors involved.",
+      deleteNote: "This owner has no projects yet, so deleting removes the account entirely. This can't be undone.",
+      deleteConfirm: "Permanently delete this owner's account? This can't be undone.",
+      deleteAccount: "Delete account",
+    },
+    offers: {
+      eyebrow: "Admin · Offers",
+      heading: "All offers",
+      total: "total",
+      empty: "No offers have been submitted yet.",
+      project: "Project",
+      contractor: "Contractor",
+      amount: "Amount",
+      status: "Status",
+      tenderType: "Tender type",
+      submitted: "Submitted",
+      revised: "revised",
+    },
+    requirements: {
+      eyebrow: "Admin · Document requirements",
+      heading: "Required documents",
+      description:
+        "Turn requirements on or off, or remove one entirely. Changes apply to new submissions right away — accounts already approved aren't affected.",
+      forContractors: "For contractors",
+      forOwners: "For owners",
+      emptyForScope: "No requirements set up for this group yet.",
+      toggleRequiredFor: "Toggle required for",
+      required: "Required",
+      optional: "Optional",
+      removeTitle: "Remove requirement",
+      namePlaceholder: "Document name, e.g. Civil ID",
+      descriptionPlaceholder: "Short description shown to the applicant",
+      addForOwners: "+ Add owner requirement",
+      addForContractors: "+ Add contractor requirement",
+      addError: "Could not add requirement.",
+      updateError: "Could not update requirement.",
+      removeError: "Could not remove requirement.",
     },
   },
 };
@@ -1067,13 +1281,122 @@ export const ar: Dictionary = {
       reviewError: "تعذر إرسال التقييم.",
       statusError: "تعذر تحديث حالة هذا المشروع.",
     },
+    verify: {
+      eyebrow: "مالك · التحقق من الحساب",
+      heading: "تحقق من حسابك",
+      description: "قدّم المستندات أدناه ليتمكن مسؤول الموقع من تفعيل حسابك.",
+      document: "المستند",
+      statusCol: "الحالة",
+      required: "مطلوب",
+      optional: "اختياري",
+      submitting: "جارٍ الإرسال…",
+      submit: "إرسال للمراجعة",
+      uploadError: "تعذر رفع المستند.",
+      submitError: "تعذر الإرسال للمراجعة.",
+    },
+    status: {
+      suspendedTitle: "الحساب موقوف",
+      suspendedBody:
+        "تم إيقاف حسابك من قبل مسؤول الموقع. لا يمكنك نشر أو إدارة المشاريع أثناء الإيقاف. تواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.",
+      approvedTitle: "تمت الموافقة عليك",
+      approvedBody: "توجه إلى لوحة التحكم لنشر مشروع.",
+      eyebrow: "مالك · التحقق من الحساب",
+      heading: "حالة الطلب",
+      changesRequestedTitle: "تم طلب تعديلات — يجب إعادة رفع مستند واحد أو أكثر",
+      underReviewTitle: "الطلب قيد المراجعة",
+      submittedOn: "تاريخ التقديم",
+      pending: "قيد الانتظار",
+      actionNeeded: "يتطلب إجراء",
+      document: "المستند",
+      statusCol: "الحالة",
+      required: "مطلوب",
+      optional: "اختياري",
+      adminNote: "ملاحظة المسؤول:",
+      reupload: "إعادة الرفع",
+      upload: "رفع",
+      footerNote:
+        "سيتم إعلامك بمجرد الموافقة الكاملة على حسابك. يبقى نشر المشاريع وإدارتها مقفلاً حتى ذلك الحين.",
+    },
   },
   admin: {
     nav: {
       requirements: "متطلبات المستندات",
       review: "مراجعة الطلبات",
       contractors: "جميع المقاولين",
+      owners: "جميع الملاك",
+      offers: "جميع العروض",
       cms: "محتوى الموقع",
+    },
+    owners: {
+      eyebrow: "المسؤول · الملاك",
+      heading: "جميع ملاك العقارات",
+      total: "الإجمالي",
+      empty: "لم يسجل أي مالك بعد.",
+      name: "الاسم",
+      status: "الحالة",
+      projects: "المشاريع",
+      manage: "إدارة",
+    },
+    ownerDetail: {
+      docReviewError: "تعذر تحديث هذا المستند.",
+      approveError: "تعذر قبول هذا المالك.",
+      rejectError: "تعذر طلب التعديلات.",
+      suspendError: "تعذر تحديث صلاحية الوصول للحساب.",
+      deleteError: "تعذر حذف هذا المالك.",
+      suspended: "موقوف",
+      documentsHeading: "مستندات التحقق",
+      document: "المستند",
+      statusCol: "الحالة",
+      approve: "قبول",
+      reject: "رفض",
+      applicationHeading: "الطلب",
+      currentStatus: "الحالة الحالية",
+      approveApplication: "الموافقة على المالك",
+      requestChanges: "طلب تعديلات",
+      accessHeading: "الوصول إلى الحساب",
+      reactivate: "إعادة تفعيل الحساب",
+      suspend: "إيقاف الحساب",
+      suspendedNote: "لا يمكن لهذا المالك نشر أو إدارة المشاريع حتى تتم إعادة التفعيل.",
+      suspendNote: "يمنع المالك فورًا من نشر أو إدارة المشاريع، دون حذف أي شيء.",
+      dangerZone: "منطقة الخطر",
+      deleteBlockedNote:
+        "قام هذا المالك بنشر مشاريع. أوقف الحساب بدلاً من حذفه، للحفاظ على سجل المشاريع والعروض سليماً للمقاولين المعنيين.",
+      deleteNote: "لا يملك هذا المالك أي مشاريع بعد، لذا فإن الحذف يزيل الحساب بالكامل. لا يمكن التراجع عن هذا.",
+      deleteConfirm: "هل تريد حذف حساب هذا المالك نهائيًا؟ لا يمكن التراجع عن هذا.",
+      deleteAccount: "حذف الحساب",
+    },
+    offers: {
+      eyebrow: "المسؤول · العروض",
+      heading: "جميع العروض",
+      total: "الإجمالي",
+      empty: "لم يتم تقديم أي عروض بعد.",
+      project: "المشروع",
+      contractor: "المقاول",
+      amount: "القيمة",
+      status: "الحالة",
+      tenderType: "نوع العطاء",
+      submitted: "تاريخ التقديم",
+      revised: "مُعدَّل",
+    },
+    requirements: {
+      eyebrow: "المسؤول · متطلبات المستندات",
+      heading: "المستندات المطلوبة",
+      description:
+        "فعّل أو عطّل المتطلبات، أو أزل أحدها نهائيًا. تُطبَّق التغييرات على الطلبات الجديدة فورًا — الحسابات التي تمت الموافقة عليها سابقًا لا تتأثر.",
+      forContractors: "للمقاولين",
+      forOwners: "للملاك",
+      emptyForScope: "لا توجد متطلبات مُعدة لهذه المجموعة بعد.",
+      toggleRequiredFor: "تبديل حالة الإلزام لـ",
+      required: "مطلوب",
+      optional: "اختياري",
+      removeTitle: "إزالة المتطلب",
+      namePlaceholder: "اسم المستند، مثال: الهوية المدنية",
+      descriptionPlaceholder: "وصف مختصر يظهر لمقدم الطلب",
+      addForOwners: "+ إضافة متطلب للملاك",
+      addForContractors: "+ إضافة متطلب للمقاولين",
+      addError: "تعذر إضافة المتطلب.",
+      updateError: "تعذر تحديث المتطلب.",
+      removeError: "تعذر إزالة المتطلب.",
     },
   },
 };

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, require_verified_owner
 from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
 from app.models.enums import NotificationType, OfferStatus, ProjectStatus, TenderType, UserRole
@@ -57,12 +57,9 @@ async def create_project(
     tender_type: str = Form("owner_visible"),
     status: str = Form("open"),
     drawings: list[UploadFile] = File(default=[]),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_verified_owner),
     db: Session = Depends(get_db),
 ):
-    if user.role != UserRole.owner:
-        raise HTTPException(status_code=403, detail="Only owners can post projects.")
-
     from datetime import datetime
 
     try:

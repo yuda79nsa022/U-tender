@@ -15,7 +15,7 @@ def test_pass17_security_hardening():
 
     from app.auth.security import hash_password
     from app.models.document import ContractorDocument
-    from app.models.enums import DocumentStatus, UserRole
+    from app.models.enums import DocumentStatus, UserRole, VerificationStatus
     from app.models.review import Review
     from app.models.user import User
 
@@ -30,7 +30,10 @@ def test_pass17_security_hardening():
 
     def make_owner(email):
         client = TestClient(app)
-        client.post("/auth/signup", json={"email": email, "password": "password123", "full_name": "O", "role": "owner"})
+        r = client.post("/auth/signup", json={"email": email, "password": "password123", "full_name": "O", "role": "owner"})
+        from app.models.owner import OwnerProfile
+        db.get(OwnerProfile, r.json()["id"]).verification_status = VerificationStatus.approved
+        db.commit()
         return client
 
 

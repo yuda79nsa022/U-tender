@@ -29,7 +29,12 @@ def test_pass15_public_cms():
     anon = TestClient(app)
 
     owner_client = TestClient(app)
-    owner_client.post("/auth/signup", json={"email": "owner1@example.com", "password": "password123", "full_name": "Owner", "role": "owner"})
+    _owner_signup_r = owner_client.post("/auth/signup", json={"email": "owner1@example.com", "password": "password123", "full_name": "Owner", "role": "owner"})
+    from app.models.owner import OwnerProfile as _OwnerProfile
+    from app.models.enums import VerificationStatus as _OwnerVerificationStatus
+    _owner_approve_db = db_module.SessionLocal()
+    _owner_approve_db.get(_OwnerProfile, _owner_signup_r.json()['id']).verification_status = _OwnerVerificationStatus.approved
+    _owner_approve_db.commit()
 
 
     def make_active_contractor(email, company):

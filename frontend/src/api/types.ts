@@ -101,6 +101,7 @@ export interface DocumentRequirement {
   description: string | null;
   is_required: boolean;
   is_active: boolean;
+  applies_to: "owner" | "contractor";
   effective_from: string;
   created_at: string;
 }
@@ -118,6 +119,48 @@ export interface ContractorDocument {
   requirement_description: string | null;
   requirement_is_required: boolean | null;
   requirement_effective_from: string | null;
+}
+
+export interface OwnerProfile {
+  user_id: string;
+  verification_status: VerificationStatus;
+  is_suspended: boolean;
+  marketplace_status: "documents_incomplete" | "submitted_for_review" | "changes_requested" | "verified_active" | "suspended";
+  created_at: string;
+  email?: string | null;
+  full_name?: string | null;
+  project_count: number;
+}
+
+export interface OwnerDocument {
+  id: string;
+  owner_id: string;
+  requirement_id: string;
+  status: DocumentStatus;
+  admin_note: string | null;
+  reviewed_at: string | null;
+  submitted_at: string | null;
+  expires_on: string | null;
+  requirement_name: string | null;
+  requirement_description: string | null;
+  requirement_is_required: boolean | null;
+  requirement_effective_from: string | null;
+}
+
+export interface AdminOffer {
+  id: string;
+  project_id: string;
+  project_title: string;
+  project_status: ProjectStatus;
+  tender_type: TenderType;
+  contractor_id: string | null;
+  contractor_company_name: string | null;
+  amount: string | null;
+  timeline_estimate: string | null;
+  status: OfferStatus;
+  revision: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Clarification {
