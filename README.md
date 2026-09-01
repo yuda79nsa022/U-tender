@@ -59,6 +59,27 @@ startup, and serves the API on `http://localhost:8000` and the frontend on
    owner or contractor), then update that row's `role` column to `admin`
    directly in MySQL. There's no self-serve admin signup by design.
 
+## Running tests
+
+The backend has a real pytest suite under `backend/tests/` — one module per
+implementation pass, covering auth, the payment gate, tender lifecycle,
+sealed-bid privacy, bidding/revisions, award, notifications, security
+hardening, and the file-repository storage backends (local + S3, the
+latter via `moto`), plus a couple of full multi-actor end-to-end business
+scenarios. Each test gets its own fresh in-memory SQLite database and
+local-storage root (see `backend/tests/conftest.py`), so nothing needs a
+running MySQL instance or Docker to run:
+
+```
+cd backend
+python -m venv .venv && source .venv/bin/activate   # if you haven't already
+pip install -r requirements-dev.txt                  # installs requirements.txt + pytest/moto
+pytest
+```
+
+There is no frontend test suite yet; `npx tsc -b --noEmit` and
+`npx vite build` from `frontend/` are the closest thing to a check today.
+
 ## File storage — local by default, S3 through configuration
 
 Set in `backend/.env`:
@@ -160,4 +181,5 @@ signed-URL expiry tied to the bid deadline. Two things changed on purpose:
 - `contractor_documents.status` transitions and `document_requirements`
   soft-delete (`is_active = false` instead of a hard delete) both carry
   over unchanged, so existing audit history stays intact.
-- No automated tests yet.
+- Backend has a real pytest suite (see "Running tests" above); there's no
+  frontend test suite yet beyond `tsc`/`vite build`.
