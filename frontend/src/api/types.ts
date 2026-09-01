@@ -45,16 +45,29 @@ export interface ProjectDetail extends Project {
 export interface Offer {
   id: string;
   project_id: string;
-  contractor_id: string;
-  amount: string;
+  contractor_id: string | null;
+  amount: string | null;
   timeline_estimate: string | null;
   message: string | null;
   status: OfferStatus;
+  revision: number;
   created_at: string;
   updated_at: string;
   contractor_company_name?: string | null;
   contractor_avg_rating?: string | null;
   contractor_review_count?: number | null;
+  sealed: boolean;
+}
+
+export interface OfferRevision {
+  id: string;
+  offer_id: string;
+  revision_number: number;
+  amount: string;
+  timeline_estimate: string | null;
+  message: string | null;
+  status: OfferStatus;
+  recorded_at: string;
 }
 
 export interface ContractorProfile {

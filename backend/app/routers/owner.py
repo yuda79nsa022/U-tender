@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import require_owner
 from app.models.contractor import ContractorProfile
-from app.models.enums import OfferStatus, ProjectStatus
-from app.models.offer import Offer
+from app.models.enums import OfferStatus, ProjectStatus, TenderType
+from app.models.offer import Offer, OfferRevision
 from app.models.project import Project
 from app.models.review import Review
 from app.models.user import User
-from app.schemas.offer import OfferOut
+from app.schemas.offer import OfferOut, OfferRevisionOut
 from app.schemas.project import ProjectOut
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.email import notify_contractor_offer_decision
@@ -40,17 +40,48 @@ def dashboard(user: User = Depends(require_owner), db: Session = Depends(get_db)
     return out
 
 
+def _is_sealed_and_open(project: Project) -> bool:
+    return project.tender_type == TenderType.sealed and project.status == ProjectStatus.open
+
+
 @router.get("/projects/{project_id}/offers", response_model=list[OfferOut])
 def list_offers(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
     project = _get_owned_project(project_id, user, db)
+    sealed = _is_sealed_and_open(project)
 
-    offers = (
+    query = (
         db.query(Offer, ContractorProfile)
         .join(ContractorProfile, Offer.contractor_id == ContractorProfile.user_id)
         .filter(Offer.project_id == project_id)
-        .order_by(Offer.amount.asc())
-        .all()
     )
+    # Sorting by amount would itself leak relative ranking on a sealed
+    # tender (the owner could infer who's cheapest from list order alone
+    # even with the amounts blanked out) — order by submission time instead
+    # while sealed, by amount once the seal is lifted for real evaluation.
+    query = query.order_by(Offer.created_at.asc()) if sealed else query.order_by(Offer.amount.asc())
+    offers = query.all()
+
+    if sealed:
+        # Bidder identity, amount, message, and rating are all withheld —
+        # only enough to show "N bids are in" (spec §19-21, D-001). Every
+        # field a curious owner could use to single out a bidder stays None.
+        return [
+            OfferOut(
+                id=o.id,
+                project_id=o.project_id,
+                contractor_id=None,
+                amount=None,
+                timeline_estimate=None,
+                message=None,
+                status=o.status,
+                revision=o.revision,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+                sealed=True,
+            )
+            for o, _cp in offers
+        ]
+
     return [
         OfferOut(
             id=o.id,
@@ -60,6 +91,7 @@ def list_offers(project_id: str, user: User = Depends(require_owner), db: Sessio
             timeline_estimate=o.timeline_estimate,
             message=o.message,
             status=o.status,
+            revision=o.revision,
             created_at=o.created_at,
             updated_at=o.updated_at,
             contractor_company_name=cp.company_name,
@@ -68,6 +100,27 @@ def list_offers(project_id: str, user: User = Depends(require_owner), db: Sessio
         )
         for o, cp in offers
     ]
+
+
+@router.get("/projects/{project_id}/offers/{offer_id}/history", response_model=list[OfferRevisionOut])
+def offer_history(project_id: str, offer_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    project = _get_owned_project(project_id, user, db)
+    if _is_sealed_and_open(project):
+        # Same rule as the list itself — a per-bid revision trail is just
+        # as identifying as the current amount, so it stays hidden until
+        # the seal lifts.
+        raise HTTPException(status_code=404, detail="Not available while this tender is sealed and still open.")
+
+    offer = db.get(Offer, offer_id)
+    if not offer or offer.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Offer not found.")
+
+    return (
+        db.query(OfferRevision)
+        .filter(OfferRevision.offer_id == offer_id)
+        .order_by(OfferRevision.revision_number.asc())
+        .all()
+    )
 
 
 @router.post("/projects/{project_id}/offers/{offer_id}/approve", response_model=ProjectOut)

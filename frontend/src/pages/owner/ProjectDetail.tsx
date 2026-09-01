@@ -293,6 +293,17 @@ export function OwnerProjectDetailPage() {
             <div className="border border-dashed border-border rounded p-8 text-center text-sm text-steel">
               No offers yet. Contractors can bid until the deadline above.
             </div>
+          ) : offers[0]?.sealed ? (
+            <div className="border border-dashed border-blue bg-blue-tint rounded p-8 text-center">
+              <div className="text-xl mb-2">🔒</div>
+              <p className="text-sm text-navy font-semibold mb-1">
+                {offers.length} sealed bid{offers.length === 1 ? "" : "s"} received
+              </p>
+              <p className="text-[12.5px] text-steel max-w-sm mx-auto">
+                This is a sealed tender — bidder identities and amounts stay hidden from you until bidding closes.
+                Close bidding to reveal and evaluate them.
+              </p>
+            </div>
           ) : (
             <table className="w-full border-collapse">
               <thead>
@@ -308,14 +319,19 @@ export function OwnerProjectDetailPage() {
                 {offers.map((o) => (
                   <tr key={o.id} className="border-b border-border">
                     <td className="py-3 px-2.5">
-                      <div className="font-display font-semibold text-[13.5px]">{o.contractor_company_name ?? "Contractor"}</div>
+                      <div className="font-display font-semibold text-[13.5px]">
+                        {o.contractor_company_name ?? "Contractor"}
+                        {o.revision > 1 && <span className="text-steel-light font-normal"> · revised x{o.revision - 1}</span>}
+                      </div>
                       {o.message && <div className="text-xs text-steel-light mt-0.5 max-w-xs">{o.message}</div>}
                     </td>
                     <td className="py-3 px-2.5">
                       <span className="text-amber text-[11px] tracking-tight">{stars(Number(o.contractor_avg_rating ?? 0))}</span>{" "}
                       <span className="font-mono text-[11px] text-steel">({o.contractor_review_count ?? 0})</span>
                     </td>
-                    <td className="py-3 px-2.5 font-mono font-semibold text-navy text-sm">${Number(o.amount).toLocaleString()}</td>
+                    <td className="py-3 px-2.5 font-mono font-semibold text-navy text-sm">
+                      {o.amount !== null ? `$${Number(o.amount).toLocaleString()}` : "—"}
+                    </td>
                     <td className="py-3 px-2.5 font-mono text-xs">{o.timeline_estimate || "—"}</td>
                     <td className="py-3 px-2.5">
                       {project.status === "awarded" || project.status === "no_award" ? (

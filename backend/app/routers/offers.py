@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import get_contractor_profile, require_approved_contractor, require_marketplace_active_contractor
 from app.models.enums import OfferStatus, ProjectStatus
-from app.models.offer import Offer
+from app.models.offer import Offer, OfferRevision
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.offer import OfferCreate, OfferOut
+from app.schemas.offer import OfferCreate, OfferOut, OfferRevisionOut
 from app.services.email import notify_owner_new_offer
 
 router = APIRouter(prefix="/projects/{project_id}/offers", tags=["offers"])
@@ -18,6 +18,38 @@ router = APIRouter(prefix="/projects/{project_id}/offers", tags=["offers"])
 @router.get("/mine", response_model=OfferOut | None)
 def my_offer(project_id: str, user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
     return db.query(Offer).filter(Offer.project_id == project_id, Offer.contractor_id == user.id).first()
+
+
+@router.get("/mine/history", response_model=list[OfferRevisionOut])
+def my_offer_history(project_id: str, user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
+    offer = db.query(Offer).filter(Offer.project_id == project_id, Offer.contractor_id == user.id).first()
+    if not offer:
+        return []
+    return (
+        db.query(OfferRevision)
+        .filter(OfferRevision.offer_id == offer.id)
+        .order_by(OfferRevision.revision_number.asc())
+        .all()
+    )
+
+
+def _snapshot_revision(db: Session, offer: Offer) -> None:
+    """Freezes the CURRENT (pre-edit) state of this offer into an
+    OfferRevision row before it gets overwritten, then bumps the counter.
+    Called for every edit and every withdrawal — the row in `offers` is
+    always the latest state, `offer_revisions` is the append-only trail of
+    everything it used to be (spec §29, D-009)."""
+    db.add(
+        OfferRevision(
+            offer_id=offer.id,
+            revision_number=offer.revision,
+            amount=offer.amount,
+            timeline_estimate=offer.timeline_estimate,
+            message=offer.message,
+            status=offer.status,
+        )
+    )
+    offer.revision += 1
 
 
 @router.post("", response_model=OfferOut)
@@ -36,13 +68,25 @@ def submit_offer(
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Enter a valid bid amount.")
 
-    # upsert on the (project_id, contractor_id) unique constraint — a
-    # contractor revising their bid before the deadline updates the same
-    # row rather than creating a duplicate.
+    # SELECT ... FOR UPDATE: two near-simultaneous edits from the same
+    # contractor (double-click, retried request) would otherwise both read
+    # the same pre-edit revision number and race to write it, corrupting
+    # the sequence in offer_revisions. Locking the row for the duration of
+    # this transaction serializes them. (SQLite, used in this app's tests,
+    # has no row-level locking and silently ignores this — the guarantee
+    # is real only against MySQL, this app's actual database.)
     offer = (
-        db.query(Offer).filter(Offer.project_id == project_id, Offer.contractor_id == user.id).first()
+        db.query(Offer)
+        .filter(Offer.project_id == project_id, Offer.contractor_id == user.id)
+        .with_for_update()
+        .first()
     )
     if offer:
+        # upsert on the (project_id, contractor_id) unique constraint — a
+        # contractor revising their bid before the deadline updates the
+        # same row rather than creating a duplicate, but the prior values
+        # are snapshotted first so nothing is silently lost.
+        _snapshot_revision(db, offer)
         offer.amount = payload.amount
         offer.timeline_estimate = payload.timeline_estimate
         offer.message = payload.message
@@ -76,9 +120,17 @@ def submit_offer(
 
 @router.post("/withdraw", response_model=OfferOut)
 def withdraw_offer(project_id: str, user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
-    offer = db.query(Offer).filter(Offer.project_id == project_id, Offer.contractor_id == user.id).first()
+    offer = (
+        db.query(Offer)
+        .filter(Offer.project_id == project_id, Offer.contractor_id == user.id)
+        .with_for_update()
+        .first()
+    )
     if not offer:
         raise HTTPException(status_code=404, detail="No offer to withdraw.")
+    if offer.status == OfferStatus.withdrawn:
+        raise HTTPException(status_code=400, detail="This offer has already been withdrawn.")
+    _snapshot_revision(db, offer)
     offer.status = OfferStatus.withdrawn
     offer.updated_at = datetime.utcnow()
     db.commit()
