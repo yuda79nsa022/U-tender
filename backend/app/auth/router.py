@@ -13,12 +13,22 @@ from app.config import get_settings
 from app.db import get_db
 from app.deps import get_current_user
 from app.models.contractor import ContractorProfile
-from app.models.enums import UserRole
+from app.models.enums import AuthTokenType, UserRole
 from app.models.revoked_token import RevokedToken
 from app.models.user import User
-from app.schemas.auth import LoginRequest, SignupRequest
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LanguageUpdate,
+    LoginRequest,
+    ResetPasswordRequest,
+    SignupRequest,
+    VerifyEmailRequest,
+)
 from app.schemas.user import UserOut
+from app.services.auth_tokens import consume_token, issue_token
 from app.services.documents import ensure_document_rows
+from app.services.email import notify_password_reset, notify_verify_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -92,6 +102,12 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
     db.refresh(user)
 
+    # Best-effort, non-blocking — signup still succeeds (and the user is
+    # still logged in immediately below) even if the email send fails, per
+    # this app's deliberate choice not to gate login on confirmation.
+    token = issue_token(db, user.id, AuthTokenType.email_verify)
+    notify_verify_email(user.email, token)
+
     _set_auth_cookies(response, user.id)
     return user
 
@@ -138,4 +154,71 @@ def logout(response: Response, refresh_token: str | None = Cookie(default=None),
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.post("/request-email-verification")
+def request_email_verification(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.email_verified:
+        return {"ok": True, "already_verified": True}
+    token = issue_token(db, user.id, AuthTokenType.email_verify)
+    notify_verify_email(user.email, token)
+    return {"ok": True}
+
+
+@router.post("/verify-email", response_model=UserOut)
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
+    user_id = consume_token(db, payload.token, AuthTokenType.email_verify)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired.")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired.")
+    user.email_verified = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # Always returns the same response whether or not the email exists —
+    # otherwise this endpoint becomes an account-enumeration oracle.
+    email = payload.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        token = issue_token(db, user.id, AuthTokenType.password_reset)
+        notify_password_reset(user.email, token)
+    return {"ok": True, "detail": "If an account with that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user_id = consume_token(db, payload.token, AuthTokenType.password_reset)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}
+
+
+@router.patch("/language", response_model=UserOut)
+def update_language(payload: LanguageUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.language = payload.language
+    db.commit()
+    db.refresh(user)
     return user

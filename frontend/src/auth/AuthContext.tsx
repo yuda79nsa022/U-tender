@@ -9,6 +9,8 @@ export interface CurrentUser {
   role: UserRole;
   full_name: string | null;
   phone: string | null;
+  language: "en" | "ar";
+  email_verified: boolean;
   created_at: string;
 }
 

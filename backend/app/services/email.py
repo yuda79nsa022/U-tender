@@ -42,6 +42,28 @@ def notify_contractor_offer_decision(contractor_email: str, project_title: str, 
     _send(contractor_email, subject, f'{body}<p><a href="{settings.app_url}/contractor/feed">View open projects</a></p>')
 
 
+def notify_verify_email(to_email: str, token: str) -> None:
+    link = f"{settings.app_url}/verify-email?token={token}"
+    _send(
+        to_email,
+        "Verify your U-Tender email address",
+        f"<p>Confirm this is your email address to finish setting up your account.</p>"
+        f'<p><a href="{link}">Verify email</a></p>'
+        f"<p>This link expires in 24 hours.</p>",
+    )
+
+
+def notify_password_reset(to_email: str, token: str) -> None:
+    link = f"{settings.app_url}/reset-password?token={token}"
+    _send(
+        to_email,
+        "Reset your U-Tender password",
+        f"<p>We received a request to reset your password.</p>"
+        f'<p><a href="{link}">Reset password</a></p>'
+        f"<p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>",
+    )
+
+
 def notify_owner_deadline_approaching(owner_email: str, project_title: str, project_id: str, offer_count: int) -> None:
     plural = "" if offer_count == 1 else "s"
     _send(

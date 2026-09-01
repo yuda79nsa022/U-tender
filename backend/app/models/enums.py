@@ -72,6 +72,11 @@ class SubscriptionStatus(str, enum.Enum):
     waived = "waived"
 
 
+class AuthTokenType(str, enum.Enum):
+    email_verify = "email_verify"
+    password_reset = "password_reset"
+
+
 class NotificationType(str, enum.Enum):
     document_rejected = "document_rejected"
     document_approved = "document_approved"

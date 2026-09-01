@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models.enums import UserRole
+from app.models.enums import Language, UserRole
 
 
 class SignupRequest(BaseModel):
@@ -17,3 +17,25 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class LanguageUpdate(BaseModel):
+    language: Language

@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { useI18n } from "@/i18n/I18nContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ApiError } from "@/api/client";
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation() as { state?: { notice?: string } };
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +22,7 @@ export function LoginPage() {
       await login(form.get("email") as string, form.get("password") as string);
       navigate("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Invalid email or password.");
+      setError(err instanceof ApiError ? err.detail : t("auth.login.genericError"));
     } finally {
       setPending(false);
     }
@@ -27,17 +30,20 @@ export function LoginPage() {
 
   return (
     <main className="max-w-sm mx-auto px-5 py-16">
-      <div className="flex items-center gap-2.5 mb-10">
-        <div className="w-7 h-7 border-2 border-navy flex items-center justify-center font-display font-bold text-sm text-navy">
-          U
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 border-2 border-navy flex items-center justify-center font-display font-bold text-sm text-navy">
+            U
+          </div>
+          <div>
+            <div className="font-display font-bold text-lg text-navy leading-none">U-TENDER</div>
+            <div className="text-[10px] text-steel uppercase tracking-widest">{t("brand.tagline")}</div>
+          </div>
         </div>
-        <div>
-          <div className="font-display font-bold text-lg text-navy leading-none">U-TENDER</div>
-          <div className="text-[10px] text-steel uppercase tracking-widest">Drawings in. Offers out.</div>
-        </div>
+        <LanguageSwitcher />
       </div>
 
-      <h1 className="font-display text-xl font-semibold text-navy mb-6">Log in</h1>
+      <h1 className="font-display text-xl font-semibold text-navy mb-6">{t("auth.login.heading")}</h1>
 
       {location.state?.notice && (
         <p className="text-xs bg-blue-tint text-blue border border-blue rounded px-3 py-2.5 mb-4">
@@ -48,31 +54,38 @@ export function LoginPage() {
 
       <form onSubmit={handleSubmit} className="grid gap-4">
         <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">Email</label>
+          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">
+            {t("auth.login.email")}
+          </label>
           <input type="email" name="email" required className="w-full border border-border rounded px-3 py-2.5 text-sm" />
         </div>
         <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">Password</label>
+          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">
+            {t("auth.login.password")}
+          </label>
           <input
             type="password"
             name="password"
             required
             className="w-full border border-border rounded px-3 py-2.5 text-sm"
           />
+          <Link to="/forgot-password" className="text-xs text-navy underline mt-1.5 inline-block">
+            {t("auth.login.forgotPassword")}
+          </Link>
         </div>
         <button
           type="submit"
           disabled={pending}
           className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 mt-2"
         >
-          {pending ? "Logging in…" : "Log in"}
+          {pending ? t("auth.login.submitting") : t("auth.login.submit")}
         </button>
       </form>
 
       <p className="text-xs text-steel mt-6">
-        No account?{" "}
+        {t("auth.login.noAccount")}{" "}
         <Link to="/signup" className="text-navy underline">
-          Sign up
+          {t("auth.login.signupLink")}
         </Link>
       </p>
     </main>

@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { useI18n } from "@/i18n/I18nContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref: string }) {
   const { logout } = useAuth();
+  const { t } = useI18n();
 
   return (
     <div className="max-w-5xl mx-auto px-5 pt-6">
@@ -13,16 +16,20 @@ export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref
           </div>
           <div>
             <div className="font-display font-bold text-lg text-navy leading-none">U-TENDER</div>
-            <div className="text-[10px] text-steel uppercase tracking-widest">Drawings in. Offers out.</div>
+            <div className="text-[10px] text-steel uppercase tracking-widest">{t("brand.tagline")}</div>
           </div>
         </Link>
 
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <span className="font-mono text-[11px] uppercase tracking-wide text-steel border border-border rounded-full px-2.5 py-1">
             {roleLabel}
           </span>
+          <Link to="/account" className="text-xs text-steel hover:text-navy underline">
+            {t("header.account")}
+          </Link>
           <button type="button" onClick={() => logout()} className="text-xs text-steel hover:text-navy underline">
-            Log out
+            {t("header.logOut")}
           </button>
         </div>
       </div>

@@ -1,8 +1,13 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
+import { AuthenticatedRoute } from "@/auth/AuthenticatedRoute";
 import { HomePage } from "@/pages/Home";
 import { LoginPage } from "@/pages/Login";
 import { SignupPage } from "@/pages/Signup";
+import { ForgotPasswordPage } from "@/pages/ForgotPassword";
+import { ResetPasswordPage } from "@/pages/ResetPassword";
+import { VerifyEmailPage } from "@/pages/VerifyEmail";
+import { AccountPage } from "@/pages/Account";
 import { OwnerLayout } from "@/pages/owner/OwnerLayout";
 import { OwnerDashboardPage } from "@/pages/owner/Dashboard";
 import { OwnerProjectNewPage } from "@/pages/owner/ProjectNew";
@@ -26,6 +31,17 @@ export function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route
+          path="/account"
+          element={
+            <AuthenticatedRoute>
+              <AccountPage />
+            </AuthenticatedRoute>
+          }
+        />
 
         <Route
           path="/owner"

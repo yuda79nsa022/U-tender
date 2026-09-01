@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import UserRole
+from app.models.enums import Language, UserRole
 
 
 class UserOut(BaseModel):
@@ -13,4 +13,6 @@ class UserOut(BaseModel):
     role: UserRole
     full_name: str | None
     phone: str | None
+    language: Language
+    email_verified: bool
     created_at: datetime
