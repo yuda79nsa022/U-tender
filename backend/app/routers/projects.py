@@ -40,8 +40,11 @@ def _can_view_project(user: User, project: Project, db: Session) -> bool:
     # Draft is the only status a contractor never sees — every other state,
     # including the newer under_evaluation/no_award/canceled/expired, stays
     # visible so a contractor who bid can still see what happened to their
-    # bid after bidding itself has ended.
-    if project.status == ProjectStatus.draft:
+    # bid after bidding itself has ended. An admin-suspended project is
+    # blocked the same way, even for a contractor who already bid on it —
+    # suspension is a moderation action meant to pull the whole project out
+    # of sight until an admin reactivates it.
+    if project.status == ProjectStatus.draft or project.is_suspended:
         return False
     profile = db.get(ContractorProfile, user.id)
     return bool(profile and profile.is_verified_active)
@@ -361,6 +364,7 @@ def _serialize_detail(project: Project, db: Session) -> ProjectDetailOut:
         status=project.status,
         tender_type=project.tender_type,
         tender_type_locked=project.tender_type_locked,
+        is_suspended=project.is_suspended,
         created_at=project.created_at,
         offer_count=offer_count,
         drawings=drawings,

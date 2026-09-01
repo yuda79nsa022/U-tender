@@ -52,10 +52,15 @@ export function AdminOffersPage() {
             {offers.map((o) => (
               <tr key={o.id} className="border-b border-border">
                 <td className="py-3 px-2.5">
-                  <Link to={`/admin/owners`} className="font-display font-semibold text-[13.5px] text-navy hover:underline">
+                  <Link to={`/admin/projects/${o.project_id}`} className="font-display font-semibold text-[13.5px] text-navy hover:underline">
                     {o.project_title}
                   </Link>
                   {o.revision > 1 && <span className="text-[11px] text-steel-light"> · {t("admin.offers.revised")} x{o.revision - 1}</span>}
+                  {o.is_suspended && (
+                    <span className="ms-1.5 font-mono text-[10px] uppercase px-2 py-0.5 rounded-full bg-red-tint text-red">
+                      {t("admin.offers.suspendedBadge")}
+                    </span>
+                  )}
                 </td>
                 <td className="py-3 px-2.5 text-[13px]">{o.contractor_company_name ?? "—"}</td>
                 <td className="py-3 px-2.5 font-mono font-semibold text-navy text-sm">

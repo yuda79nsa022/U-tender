@@ -41,6 +41,7 @@ class ProjectOut(BaseModel):
     status: ProjectStatus
     tender_type: TenderType
     tender_type_locked: bool
+    is_suspended: bool = False
     created_at: datetime
     offer_count: int = 0
     my_offer_status: str | None = None  # only populated on the contractor feed

@@ -54,10 +54,14 @@ def list_offers(project_id: str, user: User = Depends(require_owner), db: Sessio
     project = _get_owned_project(project_id, user, db)
     sealed = is_sealed_and_open(project)
 
+    # An admin-suspended offer is withheld from the owner's evaluation view
+    # entirely (not just non-awardable) — the same "pull it out of sight
+    # until an admin reactivates it" moderation intent as a suspended
+    # project, applied per-bid instead of per-project.
     query = (
         db.query(Offer, ContractorProfile)
         .join(ContractorProfile, Offer.contractor_id == ContractorProfile.user_id)
-        .filter(Offer.project_id == project_id)
+        .filter(Offer.project_id == project_id, Offer.is_suspended.is_(False))
     )
     # Sorting by amount would itself leak relative ranking on a sealed
     # tender (the owner could infer who's cheapest from list order alone
@@ -149,6 +153,8 @@ def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_o
         raise HTTPException(status_code=404, detail="Offer not found.")
     if winning_offer.status != OfferStatus.submitted:
         raise HTTPException(status_code=400, detail="Only a live bid can be awarded.")
+    if winning_offer.is_suspended:
+        raise HTTPException(status_code=400, detail="This offer has been suspended by an admin and cannot be awarded.")
 
     # Only other LIVE bids get marked rejected — a bid the contractor
     # already withdrew stays withdrawn, not overwritten into a status that
@@ -495,5 +501,6 @@ def _project_fields(p: Project) -> dict:
         status=p.status,
         tender_type=p.tender_type,
         tender_type_locked=p.tender_type_locked,
+        is_suspended=p.is_suspended,
         created_at=p.created_at,
     )

@@ -65,6 +65,8 @@ def submit_offer(
     project = db.get(Project, project_id)
     if not project or project.status != ProjectStatus.open or project.bid_deadline < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Bidding on this project is closed.")
+    if project.is_suspended:
+        raise HTTPException(status_code=400, detail="This project has been suspended and is not accepting offers.")
 
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Enter a valid bid amount.")

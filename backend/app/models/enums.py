@@ -107,3 +107,7 @@ class NotificationType(str, enum.Enum):
     award_lost = "award_lost"
     tender_cancelled = "tender_cancelled"
     tender_no_award = "tender_no_award"
+    project_suspended = "project_suspended"
+    project_reactivated = "project_reactivated"
+    offer_suspended = "offer_suspended"
+    offer_reactivated = "offer_reactivated"

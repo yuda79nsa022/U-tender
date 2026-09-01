@@ -24,6 +24,7 @@ export interface Project {
   status: ProjectStatus;
   tender_type: TenderType;
   tender_type_locked: boolean;
+  is_suspended: boolean;
   created_at: string;
   offer_count: number;
   my_offer_status: OfferStatus | null;
@@ -50,6 +51,7 @@ export interface Offer {
   timeline_estimate: string | null;
   message: string | null;
   status: OfferStatus;
+  is_suspended: boolean;
   revision: number;
   created_at: string;
   updated_at: string;
@@ -157,10 +159,35 @@ export interface AdminOffer {
   contractor_company_name: string | null;
   amount: string | null;
   timeline_estimate: string | null;
+  message?: string | null;
   status: OfferStatus;
+  is_suspended: boolean;
   revision: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminProject {
+  id: string;
+  owner_id: string;
+  owner_name: string | null;
+  owner_email: string | null;
+  title: string;
+  address: string;
+  description: string | null;
+  trade: string | null;
+  bid_deadline: string;
+  status: ProjectStatus;
+  tender_type: TenderType;
+  tender_type_locked: boolean;
+  is_suspended: boolean;
+  created_at: string;
+  offer_count: number;
+}
+
+export interface AdminProjectDetail {
+  project: AdminProject;
+  offers: AdminOffer[];
 }
 
 export interface Clarification {

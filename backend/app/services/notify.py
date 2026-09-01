@@ -96,6 +96,22 @@ _TEMPLATES: dict[NotificationType, dict[Language, tuple[str, str]]] = {
         Language.en: ("Account reactivated", "Your account has been reactivated."),
         Language.ar: ("تم إعادة تفعيل الحساب", "تمت إعادة تفعيل حسابك."),
     },
+    NotificationType.project_suspended: {
+        Language.en: ("{project_title} was suspended", "A site admin suspended this project — it's hidden from contractors until reactivated."),
+        Language.ar: ("تم تعليق {project_title}", "قام مسؤول الموقع بتعليق هذا المشروع — أصبح مخفيًا عن المقاولين حتى تتم إعادة تفعيله."),
+    },
+    NotificationType.project_reactivated: {
+        Language.en: ("{project_title} was reactivated", "A site admin reactivated this project."),
+        Language.ar: ("تمت إعادة تفعيل {project_title}", "قام مسؤول الموقع بإعادة تفعيل هذا المشروع."),
+    },
+    NotificationType.offer_suspended: {
+        Language.en: ("Your offer on {project_title} was suspended", "A site admin suspended your offer — it's hidden from the owner until reactivated."),
+        Language.ar: ("تم تعليق عرضك على {project_title}", "قام مسؤول الموقع بتعليق عرضك — أصبح مخفيًا عن المالك حتى تتم إعادة تفعيله."),
+    },
+    NotificationType.offer_reactivated: {
+        Language.en: ("Your offer on {project_title} was reactivated", "A site admin reactivated your offer."),
+        Language.ar: ("تمت إعادة تفعيل عرضك على {project_title}", "قام مسؤول الموقع بإعادة تفعيل عرضك."),
+    },
 }
 
 

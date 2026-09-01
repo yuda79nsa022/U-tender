@@ -1,7 +1,7 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/api/client";
-import type { OwnerDocument, OwnerProfile } from "@/api/types";
+import type { AdminProject, OwnerDocument, OwnerProfile } from "@/api/types";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { PageLoading } from "@/components/PageLoading";
 import { useI18n } from "@/i18n/I18nContext";
@@ -30,6 +30,12 @@ export function AdminOwnerDetailPage() {
   const { data: detail } = useQuery({
     queryKey: ["admin-owner", id],
     queryFn: () => apiFetch<{ owner: OwnerProfile; documents: OwnerDocument[] }>(`/admin/owners/${id}`),
+    enabled: !!id,
+  });
+
+  const { data: projects } = useQuery({
+    queryKey: ["admin-owner-projects", id],
+    queryFn: () => apiFetch<AdminProject[]>(`/admin/owners/${id}/projects`),
     enabled: !!id,
   });
 
@@ -175,6 +181,43 @@ export function AdminOwnerDetailPage() {
           <p className="text-[11px] text-steel-light mt-2">
             {owner.is_suspended ? t("admin.ownerDetail.suspendedNote") : t("admin.ownerDetail.suspendNote")}
           </p>
+        </div>
+
+        <div className="bg-white border border-border rounded px-5 py-4.5">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-3">{t("admin.ownerDetail.projectsHeading")}</h3>
+          {!projects?.length ? (
+            <p className="text-[12.5px] text-steel-light">{t("admin.ownerDetail.noProjects")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2">{t("admin.ownerDetail.projectTitleCol")}</th>
+                    <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2">{t("admin.ownerDetail.projectStatusCol")}</th>
+                    <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2">{t("admin.ownerDetail.projectOffersCol")}</th>
+                    <th className="border-b-2 border-navy py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((p) => (
+                    <tr key={p.id} className="border-b border-border">
+                      <td className="py-2.5">
+                        <div className="font-display font-semibold text-[13px]">{p.title}</div>
+                        {p.is_suspended && <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded-full bg-red-tint text-red">{t("admin.projects.suspendedBadge")}</span>}
+                      </td>
+                      <td className="py-2.5 font-mono text-[11px] uppercase text-steel">{p.status.replace(/_/g, " ")}</td>
+                      <td className="py-2.5 font-mono text-sm text-navy">{p.offer_count}</td>
+                      <td className="py-2.5">
+                        <Link to={`/admin/projects/${p.id}`} className="border border-navy text-navy hover:bg-navy hover:text-white text-xs font-semibold rounded px-2.5 py-1">
+                          {t("admin.ownerDetail.viewProject")}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="bg-white border border-red/30 rounded px-5 py-4.5">

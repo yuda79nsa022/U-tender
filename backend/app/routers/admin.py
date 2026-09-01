@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -8,14 +9,15 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import require_admin
 from app.models.audit_log import AuditLog
+from app.models.award_record import AwardRecord
 from app.models.cms_content import CmsContent
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement, OwnerDocument
 from app.models.enums import DocumentStatus, Language, NotificationType, UserRole, VerificationStatus
-from app.models.offer import Offer
+from app.models.offer import Offer, OfferRevision
 from app.models.owner import OwnerProfile
 from app.models.payment_override import PaymentOverride
-from app.models.project import Project
+from app.models.project import Project, ProjectDrawing
 from app.models.review import Review
 from app.models.user import User
 from app.schemas.cms import CmsContentOut, CmsContentUpsert
@@ -945,6 +947,348 @@ def list_all_offers(db: Session = Depends(get_db)):
         }
         for o, p, cp in rows
     ]
+
+
+# ---------- project & offer moderation (admin edit/suspend/delete over
+# any owner's projects and any contractor's offers on them, per the same
+# platform-wide oversight rationale as /admin/offers above) ----------
+
+def _project_admin_fields(p: Project, owner: User | None) -> dict:
+    return {
+        "id": p.id,
+        "owner_id": p.owner_id,
+        "owner_name": owner.full_name if owner else None,
+        "owner_email": owner.email if owner else None,
+        "title": p.title,
+        "address": p.address,
+        "description": p.description,
+        "trade": p.trade,
+        "bid_deadline": p.bid_deadline,
+        "status": p.status,
+        "tender_type": p.tender_type,
+        "tender_type_locked": p.tender_type_locked,
+        "is_suspended": p.is_suspended,
+        "created_at": p.created_at,
+    }
+
+
+def _offer_admin_fields(o: Offer, p: Project | None, cp: ContractorProfile | None) -> dict:
+    return {
+        "id": o.id,
+        "project_id": o.project_id,
+        "project_title": p.title if p else None,
+        "project_status": p.status if p else None,
+        "tender_type": p.tender_type if p else None,
+        "contractor_id": o.contractor_id,
+        "contractor_company_name": cp.company_name if cp else None,
+        "amount": str(o.amount) if o.amount is not None else None,
+        "timeline_estimate": o.timeline_estimate,
+        "message": o.message,
+        "status": o.status,
+        "is_suspended": o.is_suspended,
+        "revision": o.revision,
+        "created_at": o.created_at,
+        "updated_at": o.updated_at,
+    }
+
+
+@router.get("/projects")
+def list_all_projects(db: Session = Depends(get_db)):
+    rows = db.query(Project, User).join(User, Project.owner_id == User.id).order_by(Project.created_at.desc()).all()
+    offer_counts = dict(db.query(Offer.project_id, func.count(Offer.id)).group_by(Offer.project_id).all())
+    return [{**_project_admin_fields(p, u), "offer_count": offer_counts.get(p.id, 0)} for p, u in rows]
+
+
+@router.get("/owners/{owner_id}/projects")
+def list_owner_projects(owner_id: str, db: Session = Depends(get_db)):
+    """Every project a given owner has posted — the drill-down from the
+    owner detail page into what they've actually put on the marketplace,
+    each one with a link into its own offers below."""
+    _get_active_owner_profile(db, owner_id)  # 404s outright for a since-promoted admin account
+    owner_user = db.get(User, owner_id)
+    rows = db.query(Project).filter(Project.owner_id == owner_id).order_by(Project.created_at.desc()).all()
+    offer_counts = dict(db.query(Offer.project_id, func.count(Offer.id)).group_by(Offer.project_id).all())
+    return [{**_project_admin_fields(p, owner_user), "offer_count": offer_counts.get(p.id, 0)} for p in rows]
+
+
+@router.get("/projects/{project_id}")
+def admin_project_detail(project_id: str, db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    owner = db.get(User, project.owner_id)
+    offer_rows = (
+        db.query(Offer, ContractorProfile)
+        .outerjoin(ContractorProfile, Offer.contractor_id == ContractorProfile.user_id)
+        .filter(Offer.project_id == project_id)
+        .order_by(Offer.created_at.desc())
+        .all()
+    )
+    return {
+        "project": _project_admin_fields(project, owner),
+        "offers": [_offer_admin_fields(o, project, cp) for o, cp in offer_rows],
+    }
+
+
+class AdminProjectEdit(BaseModel):
+    title: str | None = None
+    address: str | None = None
+    description: str | None = None
+    trade: str | None = None
+    bid_deadline: datetime | None = None
+
+
+# A direct correction tool for an admin fixing an owner's listing (a typo, a
+# wrong address, a deadline that needs adjusting) — distinct from the
+# owner's own PATCH /projects/{id}, which is a versioned tender amendment
+# that notifies every bidder and enforces the "can't pull a deadline
+# earlier once bids are locked in" rule (spec D-001). This one is a plain
+# edit with an audit trail, not a new amendment record; it doesn't touch
+# tender_type or status, both of which have their own dedicated,
+# validated transitions elsewhere.
+@router.patch("/projects/{project_id}")
+def admin_edit_project(
+    project_id: str, payload: AdminProjectEdit, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    changed: list[str] = []
+    if payload.title is not None:
+        title = payload.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty.")
+        if title != project.title:
+            changed.append("title")
+            project.title = title
+    if payload.address is not None:
+        address = payload.address.strip()
+        if not address:
+            raise HTTPException(status_code=400, detail="Address cannot be empty.")
+        if address != project.address:
+            changed.append("address")
+            project.address = address
+    if payload.description is not None and payload.description != project.description:
+        changed.append("description")
+        project.description = payload.description or None
+    if payload.trade is not None and payload.trade != project.trade:
+        changed.append("trade")
+        project.trade = payload.trade or None
+    if payload.bid_deadline is not None and payload.bid_deadline != project.bid_deadline:
+        changed.append("bid_deadline")
+        project.bid_deadline = payload.bid_deadline
+
+    if not changed:
+        raise HTTPException(status_code=400, detail="No changes were provided.")
+
+    db.commit()
+    db.refresh(project)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="project.admin_edit",
+        target_type="project",
+        target_id=project_id,
+        new_value=", ".join(changed),
+    )
+    owner = db.get(User, project.owner_id)
+    return _project_admin_fields(project, owner)
+
+
+class ProjectSuspendPatch(BaseModel):
+    suspended: bool
+
+
+@router.post("/projects/{project_id}/suspend")
+def suspend_project(
+    project_id: str, payload: ProjectSuspendPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    previous = project.is_suspended
+    project.is_suspended = payload.suspended
+    db.commit()
+    db.refresh(project)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="project.suspend" if payload.suspended else "project.reactivate",
+        target_type="project",
+        target_id=project_id,
+        previous_value=str(previous),
+        new_value=str(payload.suspended),
+    )
+    owner = db.get(User, project.owner_id)
+    if owner:
+        notify(
+            db,
+            owner,
+            NotificationType.project_suspended if payload.suspended else NotificationType.project_reactivated,
+            link=f"/owner/projects/{project_id}",
+            project_title=project.title,
+        )
+    return _project_admin_fields(project, owner)
+
+
+# Blocked outright once the project has any offers on it — deleting it
+# would cascade through offers.project_id (ON DELETE CASCADE) and silently
+# erase every contractor's bid history on this project, data that belongs
+# to them, not just this owner. Suspend instead, same reasoning as
+# delete_owner/delete_contractor above.
+@router.delete("/projects/{project_id}", status_code=204)
+def delete_project(project_id: str, db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    offer_count = db.query(Offer).filter(Offer.project_id == project_id).count()
+    if offer_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="This project has offers on it. Suspend it instead of deleting it, to keep that bid history intact for the contractors involved.",
+        )
+
+    drawing_paths = [
+        d.file_path
+        for d in db.query(ProjectDrawing).filter(ProjectDrawing.project_id == project_id).all()
+        if d.file_path
+    ]
+    if drawing_paths:
+        get_storage().delete("project-drawings", drawing_paths)
+
+    db.delete(project)  # cascades to project_drawings/project_amendments; offers already guarded to zero above
+    db.commit()
+    return None
+
+
+class AdminOfferEdit(BaseModel):
+    amount: Decimal | None = None
+    timeline_estimate: str | None = None
+    message: str | None = None
+
+
+def _snapshot_offer_revision(db: Session, offer: Offer) -> None:
+    """Same append-only trail as the contractor's own edits in
+    routers/offers.py — an admin correcting a bid still leaves the pre-edit
+    values recoverable in offer_revisions, never silently overwritten."""
+    db.add(
+        OfferRevision(
+            offer_id=offer.id,
+            revision_number=offer.revision,
+            amount=offer.amount,
+            timeline_estimate=offer.timeline_estimate,
+            message=offer.message,
+            status=offer.status,
+        )
+    )
+    offer.revision += 1
+
+
+@router.patch("/offers/{offer_id}")
+def admin_edit_offer(
+    offer_id: str, payload: AdminOfferEdit, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    offer = db.get(Offer, offer_id)
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found.")
+
+    changed: list[str] = []
+    if payload.amount is not None and payload.amount != offer.amount:
+        if payload.amount <= 0:
+            raise HTTPException(status_code=400, detail="Enter a valid bid amount.")
+        changed.append("amount")
+    if payload.timeline_estimate is not None and payload.timeline_estimate != offer.timeline_estimate:
+        changed.append("timeline_estimate")
+    if payload.message is not None and payload.message != offer.message:
+        changed.append("message")
+
+    if not changed:
+        raise HTTPException(status_code=400, detail="No changes were provided.")
+
+    _snapshot_offer_revision(db, offer)
+    if payload.amount is not None:
+        offer.amount = payload.amount
+    if payload.timeline_estimate is not None:
+        offer.timeline_estimate = payload.timeline_estimate or None
+    if payload.message is not None:
+        offer.message = payload.message or None
+    offer.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(offer)
+
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="offer.admin_edit",
+        target_type="offer",
+        target_id=offer_id,
+        new_value=", ".join(changed),
+    )
+    project = db.get(Project, offer.project_id)
+    cp = db.get(ContractorProfile, offer.contractor_id)
+    return _offer_admin_fields(offer, project, cp)
+
+
+class OfferSuspendPatch(BaseModel):
+    suspended: bool
+
+
+@router.post("/offers/{offer_id}/suspend")
+def suspend_offer(
+    offer_id: str, payload: OfferSuspendPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    offer = db.get(Offer, offer_id)
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found.")
+    previous = offer.is_suspended
+    offer.is_suspended = payload.suspended
+    db.commit()
+    db.refresh(offer)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="offer.suspend" if payload.suspended else "offer.reactivate",
+        target_type="offer",
+        target_id=offer_id,
+        previous_value=str(previous),
+        new_value=str(payload.suspended),
+    )
+    project = db.get(Project, offer.project_id)
+    contractor_user = db.get(User, offer.contractor_id)
+    if contractor_user and project:
+        notify(
+            db,
+            contractor_user,
+            NotificationType.offer_suspended if payload.suspended else NotificationType.offer_reactivated,
+            link=f"/contractor/projects/{project.id}/offer",
+            project_title=project.title,
+        )
+    cp = db.get(ContractorProfile, offer.contractor_id)
+    return _offer_admin_fields(offer, project, cp)
+
+
+# Blocked outright once the offer has been awarded — AwardRecord.offer_id
+# has no cascade by design (it's a permanent record, spec §34/§87), so a
+# hard delete would violate that foreign key anyway; suspend instead to
+# keep the award's history intact.
+@router.delete("/offers/{offer_id}", status_code=204)
+def delete_offer(offer_id: str, db: Session = Depends(get_db)):
+    offer = db.get(Offer, offer_id)
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found.")
+
+    awarded = db.query(AwardRecord).filter(AwardRecord.offer_id == offer_id).first()
+    if awarded:
+        raise HTTPException(
+            status_code=400,
+            detail="This offer was awarded and has a permanent award record on file. Suspend it instead of deleting it.",
+        )
+
+    db.delete(offer)  # cascades to offer_revisions
+    db.commit()
+    return None
 
 
 def _profile_fields(cp: ContractorProfile) -> dict:

@@ -29,6 +29,8 @@ import { AdminContractorDetailPage } from "@/pages/admin/ContractorDetail";
 import { AdminOwnersPage } from "@/pages/admin/Owners";
 import { AdminOwnerDetailPage } from "@/pages/admin/OwnerDetail";
 import { AdminOffersPage } from "@/pages/admin/Offers";
+import { AdminProjectsPage } from "@/pages/admin/Projects";
+import { AdminProjectDetailPage } from "@/pages/admin/ProjectDetail";
 import { AdminCmsPage } from "@/pages/admin/Cms";
 
 export function App() {
@@ -141,6 +143,8 @@ export function App() {
           <Route path="owners" element={<AdminOwnersPage />} />
           <Route path="owners/:id" element={<AdminOwnerDetailPage />} />
           <Route path="offers" element={<AdminOffersPage />} />
+          <Route path="projects" element={<AdminProjectsPage />} />
+          <Route path="projects/:id" element={<AdminProjectDetailPage />} />
           <Route path="cms" element={<AdminCmsPage />} />
         </Route>
       </Routes>

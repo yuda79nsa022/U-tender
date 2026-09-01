@@ -32,6 +32,11 @@ class Project(Base):
         Enum(TenderType, native_enum=True), nullable=False, default=TenderType.owner_visible
     )
     tender_type_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Admin moderation flag — independent of the owner-driven lifecycle
+    # `status` above. Hides the project from the contractor feed and blocks
+    # new bids while set, but leaves `status` untouched so un-suspending
+    # restores exactly the state the project was in before.
+    is_suspended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Sequential per project; bumped by the amendment service whenever a
     # published tender's material fields change (spec §2.8/§2.12).
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

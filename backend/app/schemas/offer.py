@@ -27,6 +27,7 @@ class OfferOut(BaseModel):
     timeline_estimate: str | None
     message: str | None
     status: OfferStatus
+    is_suspended: bool = False
     revision: int = 1
     created_at: datetime
     updated_at: datetime

@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -26,6 +26,11 @@ class Offer(Base):
     status: Mapped[OfferStatus] = mapped_column(
         Enum(OfferStatus, native_enum=True), nullable=False, default=OfferStatus.submitted
     )
+    # Admin moderation flag, independent of `status` — a suspended offer is
+    # hidden from the owner's evaluation view and cannot be awarded, but
+    # keeps its real submitted/approved/rejected/withdrawn status intact so
+    # un-suspending restores exactly what was there before.
+    is_suspended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # This row is always the CURRENT bid. Every edit also appends an
     # OfferRevision snapshot of the pre-edit values and bumps this counter
     # (spec §29, D-009) — old values are never lost, just superseded.

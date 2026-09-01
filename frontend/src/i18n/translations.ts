@@ -373,6 +373,7 @@ export interface Dictionary {
       contractors: string;
       owners: string;
       offers: string;
+      projects: string;
       cms: string;
     };
     owners: {
@@ -411,6 +412,12 @@ export interface Dictionary {
       deleteNote: string;
       deleteConfirm: string;
       deleteAccount: string;
+      projectsHeading: string;
+      noProjects: string;
+      projectTitleCol: string;
+      projectStatusCol: string;
+      projectOffersCol: string;
+      viewProject: string;
     };
     offers: {
       eyebrow: string;
@@ -424,6 +431,66 @@ export interface Dictionary {
       tenderType: string;
       submitted: string;
       revised: string;
+      suspendedBadge: string;
+    };
+    projects: {
+      eyebrow: string;
+      heading: string;
+      total: string;
+      empty: string;
+      owner: string;
+      title: string;
+      status: string;
+      offers: string;
+      suspendedBadge: string;
+      manage: string;
+    };
+    projectDetail: {
+      eyebrow: string;
+      suspended: string;
+      editHeading: string;
+      titleLabel: string;
+      addressLabel: string;
+      descriptionLabel: string;
+      tradeLabel: string;
+      deadlineLabel: string;
+      saveChanges: string;
+      saveError: string;
+      accessHeading: string;
+      reactivate: string;
+      suspend: string;
+      suspendedNote: string;
+      suspendNote: string;
+      suspendError: string;
+      dangerZone: string;
+      deleteBlockedNote: string;
+      deleteNote: string;
+      deleteConfirm: string;
+      deleteProject: string;
+      deleteError: string;
+      offersHeading: string;
+      noOffers: string;
+      contractorCol: string;
+      amountCol: string;
+      timelineCol: string;
+      statusCol: string;
+      actionsCol: string;
+      edit: string;
+      editOfferHeading: string;
+      amountFieldLabel: string;
+      timelineFieldLabel: string;
+      messageFieldLabel: string;
+      saveOffer: string;
+      cancel: string;
+      editOfferError: string;
+      suspendOffer: string;
+      reactivateOffer: string;
+      suspendOfferError: string;
+      deleteOffer: string;
+      deleteOfferError: string;
+      deleteOfferConfirm: string;
+      deleteOfferBlocked: string;
+      offerSuspendedBadge: string;
     };
     requirements: {
       eyebrow: string;
@@ -848,6 +915,7 @@ export const en: Dictionary = {
       contractors: "All contractors",
       owners: "All owners",
       offers: "All offers",
+      projects: "All projects",
       cms: "Website content",
     },
     owners: {
@@ -887,6 +955,12 @@ export const en: Dictionary = {
       deleteNote: "This owner has no projects yet, so deleting removes the account entirely. This can't be undone.",
       deleteConfirm: "Permanently delete this owner's account? This can't be undone.",
       deleteAccount: "Delete account",
+      projectsHeading: "Projects posted",
+      noProjects: "This owner hasn't posted any projects yet.",
+      projectTitleCol: "Project",
+      projectStatusCol: "Status",
+      projectOffersCol: "Offers",
+      viewProject: "View",
     },
     offers: {
       eyebrow: "Admin · Offers",
@@ -900,6 +974,67 @@ export const en: Dictionary = {
       tenderType: "Tender type",
       submitted: "Submitted",
       revised: "revised",
+      suspendedBadge: "Suspended",
+    },
+    projects: {
+      eyebrow: "Admin · Projects",
+      heading: "All projects",
+      total: "total",
+      empty: "No projects have been posted yet.",
+      owner: "Owner",
+      title: "Project",
+      status: "Status",
+      offers: "Offers",
+      suspendedBadge: "Suspended",
+      manage: "Manage",
+    },
+    projectDetail: {
+      eyebrow: "Admin · Projects",
+      suspended: "Suspended",
+      editHeading: "Project details",
+      titleLabel: "Title",
+      addressLabel: "Address",
+      descriptionLabel: "Scope",
+      tradeLabel: "Trade",
+      deadlineLabel: "Bid deadline",
+      saveChanges: "Save changes",
+      saveError: "Could not save changes.",
+      accessHeading: "Marketplace visibility",
+      reactivate: "Reactivate project",
+      suspend: "Suspend project",
+      suspendedNote: "This project is hidden from the contractor feed and can't receive new offers until reactivated.",
+      suspendNote: "Immediately hides this project from the contractor feed and blocks new offers, without deleting anything.",
+      suspendError: "Could not update project visibility.",
+      dangerZone: "Danger zone",
+      deleteBlockedNote:
+        "This project has offers on it. Suspend it instead of deleting it, to keep that bid history intact for the contractors involved.",
+      deleteNote: "This project has no offers yet, so deleting removes it entirely. This can't be undone.",
+      deleteConfirm: "Permanently delete this project? This can't be undone.",
+      deleteProject: "Delete project",
+      deleteError: "Could not delete this project.",
+      offersHeading: "Offers on this project",
+      noOffers: "No offers have been submitted on this project.",
+      contractorCol: "Contractor",
+      amountCol: "Amount",
+      timelineCol: "Timeline",
+      statusCol: "Status",
+      actionsCol: "",
+      edit: "Edit",
+      editOfferHeading: "Edit offer",
+      amountFieldLabel: "Amount (USD)",
+      timelineFieldLabel: "Timeline",
+      messageFieldLabel: "Message",
+      saveOffer: "Save",
+      cancel: "Cancel",
+      editOfferError: "Could not save this offer.",
+      suspendOffer: "Suspend",
+      reactivateOffer: "Reactivate",
+      suspendOfferError: "Could not update this offer.",
+      deleteOffer: "Delete",
+      deleteOfferError: "Could not delete this offer.",
+      deleteOfferConfirm: "Permanently delete this offer? This can't be undone.",
+      deleteOfferBlocked: "This offer was awarded — suspend it instead of deleting it.",
+      offerSuspendedBadge: "Suspended",
     },
     requirements: {
       eyebrow: "Admin · Document requirements",
@@ -1325,6 +1460,7 @@ export const ar: Dictionary = {
       contractors: "جميع المقاولين",
       owners: "جميع الملاك",
       offers: "جميع العروض",
+      projects: "جميع المشاريع",
       cms: "محتوى الموقع",
     },
     owners: {
@@ -1364,6 +1500,12 @@ export const ar: Dictionary = {
       deleteNote: "لا يملك هذا المالك أي مشاريع بعد، لذا فإن الحذف يزيل الحساب بالكامل. لا يمكن التراجع عن هذا.",
       deleteConfirm: "هل تريد حذف حساب هذا المالك نهائيًا؟ لا يمكن التراجع عن هذا.",
       deleteAccount: "حذف الحساب",
+      projectsHeading: "المشاريع المنشورة",
+      noProjects: "لم ينشر هذا المالك أي مشاريع بعد.",
+      projectTitleCol: "المشروع",
+      projectStatusCol: "الحالة",
+      projectOffersCol: "العروض",
+      viewProject: "عرض",
     },
     offers: {
       eyebrow: "المسؤول · العروض",
@@ -1377,6 +1519,67 @@ export const ar: Dictionary = {
       tenderType: "نوع العطاء",
       submitted: "تاريخ التقديم",
       revised: "مُعدَّل",
+      suspendedBadge: "موقوف",
+    },
+    projects: {
+      eyebrow: "المسؤول · المشاريع",
+      heading: "جميع المشاريع",
+      total: "الإجمالي",
+      empty: "لم يُنشر أي مشروع بعد.",
+      owner: "المالك",
+      title: "المشروع",
+      status: "الحالة",
+      offers: "العروض",
+      suspendedBadge: "موقوف",
+      manage: "إدارة",
+    },
+    projectDetail: {
+      eyebrow: "المسؤول · المشاريع",
+      suspended: "موقوف",
+      editHeading: "تفاصيل المشروع",
+      titleLabel: "العنوان",
+      addressLabel: "العنوان الجغرافي",
+      descriptionLabel: "نطاق العمل",
+      tradeLabel: "التخصص",
+      deadlineLabel: "الموعد النهائي للعروض",
+      saveChanges: "حفظ التغييرات",
+      saveError: "تعذر حفظ التغييرات.",
+      accessHeading: "الظهور في السوق",
+      reactivate: "إعادة تفعيل المشروع",
+      suspend: "إيقاف المشروع",
+      suspendedNote: "هذا المشروع مخفي عن قائمة المقاولين ولا يمكنه استقبال عروض جديدة حتى تتم إعادة التفعيل.",
+      suspendNote: "يخفي هذا المشروع فورًا عن قائمة المقاولين ويمنع العروض الجديدة، دون حذف أي شيء.",
+      suspendError: "تعذر تحديث ظهور المشروع.",
+      dangerZone: "منطقة الخطر",
+      deleteBlockedNote:
+        "يحتوي هذا المشروع على عروض. أوقفه بدلاً من حذفه، للحفاظ على سجل العروض سليماً للمقاولين المعنيين.",
+      deleteNote: "لا يحتوي هذا المشروع على أي عروض بعد، لذا فإن الحذف يزيله بالكامل. لا يمكن التراجع عن هذا.",
+      deleteConfirm: "هل تريد حذف هذا المشروع نهائيًا؟ لا يمكن التراجع عن هذا.",
+      deleteProject: "حذف المشروع",
+      deleteError: "تعذر حذف هذا المشروع.",
+      offersHeading: "العروض على هذا المشروع",
+      noOffers: "لم يتم تقديم أي عروض على هذا المشروع.",
+      contractorCol: "المقاول",
+      amountCol: "القيمة",
+      timelineCol: "الجدول الزمني",
+      statusCol: "الحالة",
+      actionsCol: "",
+      edit: "تعديل",
+      editOfferHeading: "تعديل العرض",
+      amountFieldLabel: "القيمة (بالدولار)",
+      timelineFieldLabel: "الجدول الزمني",
+      messageFieldLabel: "الرسالة",
+      saveOffer: "حفظ",
+      cancel: "إلغاء",
+      editOfferError: "تعذر حفظ هذا العرض.",
+      suspendOffer: "إيقاف",
+      reactivateOffer: "إعادة تفعيل",
+      suspendOfferError: "تعذر تحديث هذا العرض.",
+      deleteOffer: "حذف",
+      deleteOfferError: "تعذر حذف هذا العرض.",
+      deleteOfferConfirm: "هل تريد حذف هذا العرض نهائيًا؟ لا يمكن التراجع عن هذا.",
+      deleteOfferBlocked: "تمت ترسية هذا العرض — أوقفه بدلاً من حذفه.",
+      offerSuspendedBadge: "موقوف",
     },
     requirements: {
       eyebrow: "المسؤول · متطلبات المستندات",

@@ -46,7 +46,7 @@ def feed(
     # contractorGatedPaths) — subscription is a separate, softer gate applied
     # only to drawings and offer submission below, not to seeing the feed.
     sync_expired_projects(db)
-    query = db.query(Project).filter(Project.status == ProjectStatus.open)
+    query = db.query(Project).filter(Project.status == ProjectStatus.open, Project.is_suspended.is_(False))
 
     if trade and trade.strip():
         query = query.filter(Project.trade.ilike(f"%{trade.strip()}%"))
