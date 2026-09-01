@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.contractor import ContractorProfileOut, SubmitForReview
 from app.schemas.document import ContractorDocumentOut, DocumentRequirementOut
 from app.schemas.project import ProjectOut
+from app.services.file_security import ALLOWED_DOCUMENT_EXTENSIONS, assert_allowed_extension, sanitize_path_segment
 from app.services.storage import get_storage
 
 router = APIRouter(prefix="/contractor", tags=["contractor"])
@@ -102,11 +103,13 @@ async def upload_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document requirement not found for this contractor.")
 
+    assert_allowed_extension(file.filename, ALLOWED_DOCUMENT_EXTENSIONS)
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="No file provided.")
 
-    path = f"{user.id}/{requirement_id}/{int(datetime.utcnow().timestamp() * 1000)}-{file.filename}"
+    safe_name = sanitize_path_segment(file.filename)
+    path = f"{user.id}/{requirement_id}/{int(datetime.utcnow().timestamp() * 1000)}-{safe_name}"
     get_storage().save("contractor-documents", path, content, file.content_type or "application/octet-stream")
 
     doc.file_path = path

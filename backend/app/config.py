@@ -22,8 +22,14 @@ class Settings(BaseSettings):
     s3_bucket_documents: str = "contractor-documents"
     s3_region: str | None = None
     s3_endpoint_url: str | None = None  # set for MinIO / S3-compatible hosts
+    s3_object_prefix: str = ""  # optional key prefix, e.g. "prod/" to share a bucket across environments
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
+    # Fallback signed-URL lifetime for callers with no business-rule-driven
+    # expiry of their own (drawings use drawing_url_expiry_seconds instead,
+    # tied to the bid deadline, per spec §2.14's "do not rely solely on bid
+    # deadline if post-close access is intentionally permitted" note).
+    signed_url_default_expiry_seconds: int = 60 * 60 * 24  # 24h
 
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None

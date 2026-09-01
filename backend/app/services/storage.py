@@ -36,6 +36,9 @@ class Storage(ABC):
     @abstractmethod
     def delete(self, bucket: str, keys: list[str]) -> None: ...
 
+    @abstractmethod
+    def exists(self, bucket: str, key: str) -> bool: ...
+
 
 class LocalFileStorage(Storage):
     """Files on disk under STORAGE_ROOT. 'Signed' URLs are an HMAC-signed
@@ -44,10 +47,22 @@ class LocalFileStorage(Storage):
     switching STORAGE_BACKEND never changes any caller."""
 
     def __init__(self) -> None:
-        self.root = Path(settings.storage_root)
+        self.root = Path(settings.storage_root).resolve()
 
     def _path(self, bucket: str, key: str) -> Path:
-        return self.root / bucket / key
+        # Defense in depth: callers (drawings.py, contractor.py routers)
+        # already strip ".."/"."" path segments before a key ever reaches
+        # here, but storage itself never trusts that alone — resolve the
+        # final path and refuse anything that would land outside root,
+        # the way the "app-layer + a second independent check" pattern is
+        # used everywhere else in this codebase (see storage-boundary note
+        # in the architecture diagram this app was designed from).
+        candidate = (self.root / bucket / key).resolve()
+        try:
+            candidate.relative_to(self.root)
+        except ValueError:
+            raise ValueError(f"Refusing to access path outside storage root: {bucket}/{key}")
+        return candidate
 
     def save(self, bucket: str, key: str, content: bytes, content_type: str) -> None:
         path = self._path(bucket, key)
@@ -69,6 +84,9 @@ class LocalFileStorage(Storage):
         for key in keys:
             path = self._path(bucket, key)
             path.unlink(missing_ok=True)
+
+    def exists(self, bucket: str, key: str) -> bool:
+        return self._path(bucket, key).is_file()
 
     @staticmethod
     def _sign(bucket: str, key: str, expires_at: int) -> str:
@@ -104,19 +122,24 @@ class S3Storage(Storage):
             "contractor-documents": settings.s3_bucket_documents,
         }.get(bucket, bucket)
 
+    def _resolve_key(self, key: str) -> str:
+        return f"{settings.s3_object_prefix}{key}" if settings.s3_object_prefix else key
+
     def save(self, bucket: str, key: str, content: bytes, content_type: str) -> None:
-        self._client.put_object(Bucket=self._resolve_bucket(bucket), Key=key, Body=content, ContentType=content_type)
+        self._client.put_object(
+            Bucket=self._resolve_bucket(bucket), Key=self._resolve_key(key), Body=content, ContentType=content_type
+        )
 
     def signed_url(self, bucket: str, key: str, expires_in: int) -> str:
         return self._client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": self._resolve_bucket(bucket), "Key": key},
+            Params={"Bucket": self._resolve_bucket(bucket), "Key": self._resolve_key(key)},
             ExpiresIn=expires_in,
         )
 
     def download(self, bucket: str, key: str) -> bytes | None:
         try:
-            obj = self._client.get_object(Bucket=self._resolve_bucket(bucket), Key=key)
+            obj = self._client.get_object(Bucket=self._resolve_bucket(bucket), Key=self._resolve_key(key))
         except self._client.exceptions.NoSuchKey:
             return None
         except Exception:
@@ -127,7 +150,15 @@ class S3Storage(Storage):
         if not keys:
             return
         real_bucket = self._resolve_bucket(bucket)
-        self._client.delete_objects(Bucket=real_bucket, Delete={"Objects": [{"Key": k} for k in keys]})
+        objects = [{"Key": self._resolve_key(k)} for k in keys]
+        self._client.delete_objects(Bucket=real_bucket, Delete={"Objects": objects})
+
+    def exists(self, bucket: str, key: str) -> bool:
+        try:
+            self._client.head_object(Bucket=self._resolve_bucket(bucket), Key=self._resolve_key(key))
+            return True
+        except Exception:
+            return False
 
 
 _storage_instance: Storage | None = None
