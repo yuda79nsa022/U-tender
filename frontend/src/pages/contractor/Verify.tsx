@@ -80,6 +80,7 @@ export function ContractorVerifyPage() {
           />
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse mt-4">
           <thead>
             <tr className="text-left">
@@ -116,6 +117,7 @@ export function ContractorVerifyPage() {
             ))}
           </tbody>
         </table>
+        </div>
 
         <button
           type="submit"

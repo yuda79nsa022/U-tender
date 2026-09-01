@@ -77,6 +77,7 @@ export function ContractorStatusPage() {
         </span>
       </div>
 
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse">
         <thead>
           <tr>
@@ -113,6 +114,7 @@ export function ContractorStatusPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <p className="text-xs text-steel-light mt-4">{t("contractor.status.footerNote")}</p>
     </main>

@@ -133,7 +133,7 @@ export function ContractorDashboardPage() {
 
       {isActive && (
         <>
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
             <div className="border border-border bg-white rounded px-4 py-3">
               <div className="font-display text-2xl font-semibold text-navy leading-none">{activeBids}</div>
               <div className="font-mono text-[10px] uppercase tracking-wide text-steel mt-1">{t("contractor.dashboard.kpiActiveBids")}</div>

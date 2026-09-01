@@ -51,6 +51,7 @@ export function AdminContractorsPage() {
       ) : !contractors?.length ? (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">No contractors have signed up yet.</div>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -100,6 +101,7 @@ export function AdminContractorsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </main>
   );

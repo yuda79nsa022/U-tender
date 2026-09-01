@@ -10,7 +10,7 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen">
       <AppHeader roleLabel="Site Admin" homeHref="/admin/requirements" />
-      <div className="max-w-5xl mx-auto px-5 pt-4 flex gap-4">
+      <div className="max-w-5xl mx-auto px-5 pt-4 flex flex-wrap gap-x-4 gap-y-2">
         <NavLink to="/admin/requirements" className={navClass}>
           {t("admin.nav.requirements")}
         </NavLink>
