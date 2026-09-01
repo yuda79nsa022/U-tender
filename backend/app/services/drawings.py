@@ -9,6 +9,39 @@ from app.services.storage import Storage
 from app.services.zip_utils import ZipSecurityError, extract_zip, is_zip_filename
 
 
+# A revised drawing is a new row, never an overwrite (spec §2.8/§25/§67):
+# uploading a file whose name matches an existing *current* drawing on this
+# project supersedes it — the old row's is_current flips false and stays in
+# the database and in storage untouched, the new row takes over as current
+# at revision+1. Matching by file_name (case-insensitive) is what lets an
+# owner "replace" a drawing through the same plain upload control used for
+# adding brand new ones, with no separate "replace" UI required.
+def _record_drawing(db: Session, project_id: str, file_path: str, file_name: str) -> None:
+    current = (
+        db.query(ProjectDrawing)
+        .filter(
+            ProjectDrawing.project_id == project_id,
+            ProjectDrawing.is_current.is_(True),
+            ProjectDrawing.file_name.ilike(file_name),
+        )
+        .first()
+    )
+    next_revision = 1
+    if current:
+        current.is_current = False
+        next_revision = current.revision + 1
+    db.add(
+        ProjectDrawing(
+            project_id=project_id, file_path=file_path, file_name=file_name, revision=next_revision, is_current=True
+        )
+    )
+    # Autoflush is off on this session (see db.py) — flush explicitly so a
+    # same-named file appearing twice within one batch (e.g. two zip
+    # entries sharing a name) is still detected as a revision of the one
+    # just added, not two independent "current" rows.
+    db.flush()
+
+
 # Used by both project creation and "add more drawings" on an existing
 # project. A zip is transparently extracted into one project_drawings row
 # per file inside it; anything else is uploaded as-is. One bad file/zip
@@ -43,7 +76,7 @@ async def upload_drawings_for_project(
                 except Exception:
                     failed += 1
                     continue
-                db.add(ProjectDrawing(project_id=project_id, file_path=path, file_name=entry.name))
+                _record_drawing(db, project_id, path, entry.name)
                 uploaded += 1
             continue
 
@@ -53,7 +86,7 @@ async def upload_drawings_for_project(
         except Exception:
             failed += 1
             continue
-        db.add(ProjectDrawing(project_id=project_id, file_path=path, file_name=file.filename))
+        _record_drawing(db, project_id, path, file.filename)
         uploaded += 1
 
     db.commit()

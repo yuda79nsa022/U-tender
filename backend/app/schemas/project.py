@@ -23,6 +23,8 @@ class DrawingOut(BaseModel):
     id: str
     file_name: str
     uploaded_at: datetime
+    revision: int
+    is_current: bool
     url: str | None = None
 
 

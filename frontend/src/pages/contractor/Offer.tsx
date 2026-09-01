@@ -125,6 +125,7 @@ export function ContractorOfferPage() {
                 {d.url ? (
                   <a href={d.url} target="_blank" rel="noreferrer" className="font-mono text-xs text-blue underline bg-blue-tint px-3 py-1.5 rounded">
                     {d.file_name}
+                    {d.revision > 1 && <span className="text-blue/60"> · v{d.revision}</span>}
                   </a>
                 ) : (
                   <span className="font-mono text-xs text-steel">{d.file_name}</span>

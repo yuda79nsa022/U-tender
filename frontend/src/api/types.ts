@@ -33,6 +33,8 @@ export interface Drawing {
   id: string;
   file_name: string;
   uploaded_at: string;
+  revision: number;
+  is_current: boolean;
   url: string | null;
 }
 

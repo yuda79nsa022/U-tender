@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError, API_URL } from "@/api/client";
-import type { Offer, ProjectDetail } from "@/api/types";
+import type { Drawing, Offer, ProjectDetail } from "@/api/types";
 import { timeRemaining, stars } from "@/lib/format";
 import { RatingInput } from "@/components/RatingInput";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -18,6 +18,30 @@ interface Review {
   rating: number;
   comment: string | null;
   created_at: string;
+}
+
+function DrawingHistory({ projectId }: { projectId: string }) {
+  const { data: history } = useQuery({
+    queryKey: ["drawing-history", projectId],
+    queryFn: () => apiFetch<Drawing[]>(`/projects/${projectId}/drawings/history`),
+  });
+
+  if (!history?.length) return <p className="mt-2 font-mono text-[10.5px] text-steel-light">No revision history yet.</p>;
+
+  return (
+    <ul className="mt-2 space-y-1 border-t border-white/20 pt-2">
+      {history.map((d) => (
+        <li key={d.id} className={`font-mono text-[10.5px] ${d.is_current ? "text-white" : "text-white/40"}`}>
+          v{d.revision} · {d.file_name} {d.is_current && "(current)"}{" "}
+          {d.url && (
+            <a href={d.url} target="_blank" rel="noreferrer" className="underline">
+              view
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function statusBadgeClasses(status: string) {
@@ -43,6 +67,7 @@ export function OwnerProjectDetailPage() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const drawingsFormRef = useRef<HTMLFormElement>(null);
 
   const { data: project } = useQuery({
@@ -204,6 +229,7 @@ export function OwnerProjectDetailPage() {
                     ) : (
                       <span>{d.file_name}</span>
                     )}
+                    {d.revision > 1 && <span className="text-white/50"> · v{d.revision}</span>}
                   </li>
                 ))}
               </ul>
@@ -217,6 +243,14 @@ export function OwnerProjectDetailPage() {
               Download all as .zip ({project.drawings.length} file{project.drawings.length === 1 ? "" : "s"})
             </a>
           )}
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            className="mt-2.5 block font-mono text-xs text-steel underline"
+          >
+            {showHistory ? "Hide" : "View"} revision history
+          </button>
+          {showHistory && <DrawingHistory projectId={project.id} />}
 
           <form
             ref={drawingsFormRef}

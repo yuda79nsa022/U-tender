@@ -131,7 +131,14 @@ def download_drawings_zip(project_id: str, user: User = Depends(get_current_user
     if not project or not _can_view_project(user, project, db):
         raise HTTPException(status_code=404, detail="Project not found.")
 
-    drawings = db.query(ProjectDrawing).filter(ProjectDrawing.project_id == project_id).all()
+    # Only the current revision of each drawing — a superseded version
+    # stays downloadable individually via its own signed URL in the
+    # history endpoint, but "download everything" means the latest set.
+    drawings = (
+        db.query(ProjectDrawing)
+        .filter(ProjectDrawing.project_id == project_id, ProjectDrawing.is_current.is_(True))
+        .all()
+    )
     if not drawings:
         raise HTTPException(status_code=404, detail="No drawings on this project.")
 
@@ -158,16 +165,56 @@ def download_drawings_zip(project_id: str, user: User = Depends(get_current_user
     )
 
 
+@router.get("/{project_id}/drawings/history", response_model=list[DrawingOut])
+def drawing_history(project_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Every revision of every drawing on this project, superseded ones
+    included — the append-only record spec §2.8/§67 require. Same
+    visibility rule as the project itself; a superseded row's signed URL
+    still works, so old drawings are never truly gone, just no longer the
+    default one shown."""
+    project = db.get(Project, project_id)
+    if not project or not _can_view_project(user, project, db):
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    storage = get_storage()
+    expiry = drawing_url_expiry_seconds(project.bid_deadline)
+    rows = (
+        db.query(ProjectDrawing)
+        .filter(ProjectDrawing.project_id == project_id)
+        .order_by(ProjectDrawing.file_name.asc(), ProjectDrawing.revision.asc())
+        .all()
+    )
+    return [
+        DrawingOut(
+            id=d.id,
+            file_name=d.file_name,
+            uploaded_at=d.uploaded_at,
+            revision=d.revision,
+            is_current=d.is_current,
+            url=storage.signed_url("project-drawings", d.file_path, expiry),
+        )
+        for d in rows
+    ]
+
+
 def _serialize_detail(project: Project, db: Session) -> ProjectDetailOut:
     offer_count = db.query(Offer).filter(Offer.project_id == project.id).count()
     storage = get_storage()
     expiry = drawing_url_expiry_seconds(project.bid_deadline)
-    drawing_rows = db.query(ProjectDrawing).filter(ProjectDrawing.project_id == project.id).all()
+    # Current revisions only — superseded ones are never lost, just not
+    # part of the default view (see /drawings/history for the full trail).
+    drawing_rows = (
+        db.query(ProjectDrawing)
+        .filter(ProjectDrawing.project_id == project.id, ProjectDrawing.is_current.is_(True))
+        .all()
+    )
     drawings = [
         DrawingOut(
             id=d.id,
             file_name=d.file_name,
             uploaded_at=d.uploaded_at,
+            revision=d.revision,
+            is_current=d.is_current,
             url=storage.signed_url("project-drawings", d.file_path, expiry),
         )
         for d in drawing_rows
