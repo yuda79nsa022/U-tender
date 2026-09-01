@@ -8,6 +8,27 @@ import { PageLoading } from "@/components/PageLoading";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { ClarificationsPanel } from "@/components/ClarificationsPanel";
 
+interface AwardRecord {
+  amount: string;
+  contractor_company_name: string | null;
+  created_at: string;
+}
+
+function AwardOutcome({ projectId }: { projectId: string }) {
+  const { data: award } = useQuery({
+    queryKey: ["award", projectId],
+    queryFn: () => apiFetch<AwardRecord>(`/projects/${projectId}/award`),
+  });
+
+  if (!award) return null;
+
+  return (
+    <p className="mt-3 font-mono text-xs text-navy">
+      Awarded to {award.contractor_company_name ?? "another contractor"} at ${Number(award.amount).toLocaleString()}
+    </p>
+  );
+}
+
 export function ContractorOfferPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -152,6 +173,10 @@ export function ContractorOfferPage() {
             <div className="mt-3 font-mono text-xs text-navy">
               Your final offer: ${Number(existingOffer.amount).toLocaleString()} — status: {existingOffer.status}
             </div>
+          )}
+          {project.status === "awarded" && <AwardOutcome projectId={project.id} />}
+          {project.status === "no_award" && (
+            <p className="mt-3 font-mono text-xs text-steel-light">The owner decided not to award this project.</p>
           )}
         </div>
       ) : (

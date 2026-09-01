@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_owner
+from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
 from app.models.enums import OfferStatus, ProjectStatus, TenderType
 from app.models.offer import Offer, OfferRevision
@@ -14,6 +15,7 @@ from app.models.user import User
 from app.schemas.offer import OfferOut, OfferRevisionOut
 from app.schemas.project import ProjectOut
 from app.schemas.review import ReviewCreate, ReviewOut
+from app.services.audit import log_action
 from app.services.email import notify_contractor_offer_decision
 from app.services.tender_lifecycle import sync_expired_projects
 
@@ -142,9 +144,16 @@ def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_o
     winning_offer = db.get(Offer, offer_id)
     if not winning_offer or winning_offer.project_id != project_id:
         raise HTTPException(status_code=404, detail="Offer not found.")
+    if winning_offer.status != OfferStatus.submitted:
+        raise HTTPException(status_code=400, detail="Only a live bid can be awarded.")
 
+    # Only other LIVE bids get marked rejected — a bid the contractor
+    # already withdrew stays withdrawn, not overwritten into a status that
+    # never actually happened.
     other_offers = (
-        db.query(Offer).filter(Offer.project_id == project_id, Offer.id != offer_id).all()
+        db.query(Offer)
+        .filter(Offer.project_id == project_id, Offer.id != offer_id, Offer.status == OfferStatus.submitted)
+        .all()
     )
 
     winning_offer.status = OfferStatus.approved
@@ -153,7 +162,33 @@ def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_o
         o.status = OfferStatus.rejected
         o.updated_at = datetime.utcnow()
     project.status = ProjectStatus.awarded
+
+    # Permanent record (spec §34, §87) — snapshots exactly which revision
+    # of the tender and of the winning bid were in effect at award time, so
+    # it stays meaningful even after later amendments or a hypothetical bid
+    # edit (bids can't be edited post-close, but the tender's own revision
+    # can still move via future passes' evaluation tooling).
+    db.add(
+        AwardRecord(
+            project_id=project_id,
+            offer_id=winning_offer.id,
+            contractor_id=winning_offer.contractor_id,
+            amount=winning_offer.amount,
+            project_revision=project.revision,
+            offer_revision=winning_offer.revision,
+            awarded_by=user.id,
+        )
+    )
     db.commit()
+
+    log_action(
+        db,
+        actor_id=user.id,
+        action="project.award",
+        target_type="project",
+        target_id=project_id,
+        new_value=f"offer:{winning_offer.id} contractor:{winning_offer.contractor_id} amount:{winning_offer.amount}",
+    )
 
     # Best-effort — notification failures never roll back the award itself.
     winner_user = db.get(User, winning_offer.contractor_id)
@@ -222,8 +257,10 @@ def mark_no_award(project_id: str, user: User = Depends(require_owner), db: Sess
     project = _get_owned_project(project_id, user, db)
     if project.status not in (ProjectStatus.closed, ProjectStatus.under_evaluation):
         raise HTTPException(status_code=400, detail="Only a closed or under-evaluation project can be marked no-award.")
+    previous = project.status.value
     project.status = ProjectStatus.no_award
     db.commit()
+    log_action(db, actor_id=user.id, action="project.no_award", target_type="project", target_id=project_id, previous_value=previous, new_value="no_award")
     db.refresh(project)
     return _project_response(project, db)
 
@@ -234,8 +271,10 @@ def cancel_project(project_id: str, user: User = Depends(require_owner), db: Ses
     project = _get_owned_project(project_id, user, db)
     if project.status not in (ProjectStatus.draft, ProjectStatus.open, ProjectStatus.closed, ProjectStatus.under_evaluation):
         raise HTTPException(status_code=400, detail="This project can no longer be canceled.")
+    previous = project.status.value
     project.status = ProjectStatus.canceled
     db.commit()
+    log_action(db, actor_id=user.id, action="project.cancel", target_type="project", target_id=project_id, previous_value=previous, new_value="canceled")
     db.refresh(project)
     return _project_response(project, db)
 

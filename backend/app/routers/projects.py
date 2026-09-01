@@ -4,6 +4,7 @@ from starlette.responses import StreamingResponse
 
 from app.db import get_db
 from app.deps import get_current_user
+from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
 from app.models.enums import OfferStatus, ProjectStatus, TenderType, UserRole
 from app.models.offer import Offer
@@ -11,6 +12,7 @@ from app.models.project import Project, ProjectDrawing
 from app.models.project_amendment import ProjectAmendment
 from app.models.user import User
 from app.schemas.amendment import ProjectAmendmentOut, ProjectAmendmentRequest
+from app.schemas.award import AwardRecordOut
 from app.schemas.project import DrawingOut, ProjectCreate, ProjectDetailOut
 from app.services.drawings import upload_drawings_for_project
 from app.services.email import notify_contractor_tender_amended
@@ -200,6 +202,31 @@ def list_amendments(project_id: str, user: User = Depends(get_current_user), db:
         .filter(ProjectAmendment.project_id == project_id)
         .order_by(ProjectAmendment.amendment_number.asc())
         .all()
+    )
+
+
+@router.get("/{project_id}/award", response_model=AwardRecordOut)
+def get_award(project_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if not project or not _can_view_project(user, project, db):
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    record = db.query(AwardRecord).filter(AwardRecord.project_id == project_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="This project has not been awarded.")
+
+    cp = db.get(ContractorProfile, record.contractor_id)
+    return AwardRecordOut(
+        id=record.id,
+        project_id=record.project_id,
+        offer_id=record.offer_id,
+        contractor_id=record.contractor_id,
+        amount=record.amount,
+        project_revision=record.project_revision,
+        offer_revision=record.offer_revision,
+        awarded_by=record.awarded_by,
+        created_at=record.created_at,
+        contractor_company_name=cp.company_name if cp else None,
     )
 
 
