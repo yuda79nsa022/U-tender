@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import SubscriptionStatus, VerificationStatus
+from app.models.enums import OfferStatus, ProjectStatus, SubscriptionStatus, VerificationStatus
 
 
 class ContractorProfileOut(BaseModel):
@@ -39,3 +39,16 @@ class ContractorProfileUpdate(BaseModel):
 class SubmitForReview(BaseModel):
     company_name: str
     license_number: str | None = None
+
+
+class MyBidOut(BaseModel):
+    project_id: str
+    project_title: str
+    project_address: str
+    project_status: ProjectStatus
+    bid_deadline: datetime
+    offer_id: str
+    amount: Decimal
+    offer_status: OfferStatus
+    revision: int
+    updated_at: datetime

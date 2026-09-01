@@ -13,6 +13,7 @@ import { OwnerDashboardPage } from "@/pages/owner/Dashboard";
 import { OwnerProjectNewPage } from "@/pages/owner/ProjectNew";
 import { OwnerProjectDetailPage } from "@/pages/owner/ProjectDetail";
 import { ContractorLayout } from "@/pages/contractor/ContractorLayout";
+import { ContractorDashboardPage } from "@/pages/contractor/Dashboard";
 import { ContractorFeedPage } from "@/pages/contractor/Feed";
 import { ContractorVerifyPage } from "@/pages/contractor/Verify";
 import { ContractorStatusPage } from "@/pages/contractor/Status";
@@ -56,6 +57,16 @@ export function App() {
           <Route path="projects/:id" element={<OwnerProjectDetailPage />} />
         </Route>
 
+        <Route
+          path="/contractor/dashboard"
+          element={
+            <ProtectedRoute role="contractor">
+              <ContractorLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ContractorDashboardPage />} />
+        </Route>
         <Route
           path="/contractor/verify"
           element={

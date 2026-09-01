@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 
 const ROLE_HOME: Record<string, { label: string; href: string }> = {
   owner: { label: "Owner", href: "/owner/dashboard" },
-  contractor: { label: "Contractor", href: "/contractor/feed" },
+  contractor: { label: "Contractor", href: "/contractor/dashboard" },
   admin: { label: "Site Admin", href: "/admin/requirements" },
 };
 

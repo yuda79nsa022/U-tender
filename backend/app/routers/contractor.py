@@ -12,7 +12,7 @@ from app.models.enums import DocumentStatus, ProjectStatus, VerificationStatus
 from app.models.offer import Offer
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.contractor import ContractorProfileOut, SubmitForReview
+from app.schemas.contractor import ContractorProfileOut, MyBidOut, SubmitForReview
 from app.schemas.document import ContractorDocumentOut, DocumentRequirementOut
 from app.schemas.project import ProjectOut
 from app.services.file_security import ALLOWED_DOCUMENT_EXTENSIONS, assert_allowed_extension, sanitize_path_segment
@@ -90,6 +90,38 @@ def feed_trades(user: User = Depends(require_approved_contractor), db: Session =
         .all()
     )
     return [r[0] for r in rows if r[0]]
+
+
+@router.get("/my-bids", response_model=list[MyBidOut])
+def my_bids(user: User = Depends(require_contractor), db: Session = Depends(get_db)):
+    """Every offer this contractor has ever placed, across all projects —
+    the dashboard's single source for 'active bids' / 'won' counts and the
+    My Bids list. Requires only the role, not verification/payment: a
+    contractor should always be able to see what they've already bid on
+    even if their access later lapses."""
+    sync_expired_projects(db)
+    rows = (
+        db.query(Offer, Project)
+        .join(Project, Offer.project_id == Project.id)
+        .filter(Offer.contractor_id == user.id)
+        .order_by(Offer.updated_at.desc())
+        .all()
+    )
+    return [
+        MyBidOut(
+            project_id=p.id,
+            project_title=p.title,
+            project_address=p.address,
+            project_status=p.status,
+            bid_deadline=p.bid_deadline,
+            offer_id=o.id,
+            amount=o.amount,
+            offer_status=o.status,
+            revision=o.revision,
+            updated_at=o.updated_at,
+        )
+        for o, p in rows
+    ]
 
 
 @router.get("/profile", response_model=ContractorProfileOut)

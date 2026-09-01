@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 export function ContractorLayout() {
   return (
     <div className="min-h-screen">
-      <AppHeader roleLabel="Contractor" homeHref="/contractor/feed" />
+      <AppHeader roleLabel="Contractor" homeHref="/contractor/dashboard" />
       <Outlet />
     </div>
   );

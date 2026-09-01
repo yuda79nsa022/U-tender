@@ -49,9 +49,9 @@ export function ContractorStatusPage() {
         <div className="bg-white border border-green border-l-4 rounded px-5 py-4">
           <div className="font-display font-semibold text-navy">You're approved</div>
           <p className="text-sm text-steel mt-1.5">
-            Head to the{" "}
-            <a href="/contractor/feed" className="text-navy underline">
-              feed
+            Head to your{" "}
+            <a href="/contractor/dashboard" className="text-navy underline">
+              dashboard
             </a>{" "}
             to browse open projects.
           </p>

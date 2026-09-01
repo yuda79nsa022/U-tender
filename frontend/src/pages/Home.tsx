@@ -12,8 +12,10 @@ export function HomePage() {
   if (user) {
     if (user.role === "admin") return <Navigate to="/admin/requirements" replace />;
     if (user.role === "owner") return <Navigate to="/owner/dashboard" replace />;
-    // middleware forwards on to /feed once approved
-    return <Navigate to="/contractor/verify" replace />;
+    // The contractor dashboard itself branches on marketplace_status —
+    // documents incomplete, pending review, payment required, active, or
+    // suspended all land there and get the right prompt.
+    return <Navigate to="/contractor/dashboard" replace />;
   }
 
   return (
