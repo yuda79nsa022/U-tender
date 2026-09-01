@@ -7,11 +7,31 @@ class UserRole(str, enum.Enum):
     admin = "admin"
 
 
+class Language(str, enum.Enum):
+    en = "en"
+    ar = "ar"
+
+
+# Tender lifecycle. "open"/"closed"/"awarded"/"canceled" are the original
+# values (kept, including the American spelling, so existing rows never
+# need a data migration) — draft/under_evaluation/no_award/expired are
+# additive per the master specification's tender lifecycle (spec §2.12).
 class ProjectStatus(str, enum.Enum):
+    draft = "draft"
     open = "open"
     closed = "closed"
+    under_evaluation = "under_evaluation"
     awarded = "awarded"
+    no_award = "no_award"
     canceled = "canceled"
+    expired = "expired"
+
+
+# Owner's choice at tender creation (spec §19-21, D-001). Locked once the
+# first valid bid is submitted — see Project.tender_type_locked.
+class TenderType(str, enum.Enum):
+    sealed = "sealed"
+    owner_visible = "owner_visible"
 
 
 class OfferStatus(str, enum.Enum):
@@ -35,8 +55,45 @@ class DocumentStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+# Payment/subscription state (spec §2.11: "Not Started, Pending, Active,
+# Past Due, Failed, Cancelled, Expired, Waived/Overridden"). trialing is
+# kept for Stripe trial periods even though the spec doesn't name it
+# separately; waived is set/cleared alongside a PaymentOverride row, never
+# set directly by the Stripe webhook.
 class SubscriptionStatus(str, enum.Enum):
+    not_started = "not_started"
+    pending = "pending"
     trialing = "trialing"
     active = "active"
     past_due = "past_due"
+    failed = "failed"
     canceled = "canceled"
+    expired = "expired"
+    waived = "waived"
+
+
+class NotificationType(str, enum.Enum):
+    document_rejected = "document_rejected"
+    document_approved = "document_approved"
+    verification_activated = "verification_activated"
+    payment_activated = "payment_activated"
+    payment_failed = "payment_failed"
+    payment_override_granted = "payment_override_granted"
+    payment_override_revoked = "payment_override_revoked"
+    contractor_suspended = "contractor_suspended"
+    contractor_reactivated = "contractor_reactivated"
+    document_expiring = "document_expiring"
+    tender_amendment = "tender_amendment"
+    drawing_revised = "drawing_revised"
+    clarification_asked = "clarification_asked"
+    clarification_answered = "clarification_answered"
+    bid_submitted = "bid_submitted"
+    bid_revised = "bid_revised"
+    bid_withdrawn = "bid_withdrawn"
+    deadline_approaching = "deadline_approaching"
+    tender_closed = "tender_closed"
+    evaluation_ready = "evaluation_ready"
+    award_won = "award_won"
+    award_lost = "award_lost"
+    tender_cancelled = "tender_cancelled"
+    tender_no_award = "tender_no_award"

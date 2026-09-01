@@ -16,6 +16,13 @@ class DocumentRequirement(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Versioning (spec §48): when this requirement took effect. Combined
+    # with is_active (retire without deleting — see removeRequirement),
+    # this is enough to answer "was this requirement in force on date X"
+    # for audit purposes without a full historical-snapshot table. Adding
+    # a requirement never retroactively blocks an already-approved
+    # contractor — nothing re-checks past approvals against new rows.
+    effective_from: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

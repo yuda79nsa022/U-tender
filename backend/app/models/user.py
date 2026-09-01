@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import Boolean, DateTime, Enum, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.models.common import gen_uuid
-from app.models.enums import UserRole
+from app.models.enums import Language, UserRole
 
 
 # Replaces the Supabase auth.users + profiles split — this app now owns
@@ -20,6 +20,8 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, native_enum=True), nullable=False, default=UserRole.owner)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    language: Mapped[Language] = mapped_column(Enum(Language, native_enum=True), nullable=False, default=Language.en)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     contractor_profile = relationship(

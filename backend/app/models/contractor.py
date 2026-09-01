@@ -28,10 +28,58 @@ class ContractorProfile(Base):
         Enum(SubscriptionStatus, native_enum=True), nullable=True
     )
     subscription_current_period_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Denormalized "is there currently an active admin payment override"
+    # flag — kept in sync by the payment_overrides service whenever a
+    # PaymentOverride row is created or revoked. Reading this is a hot path
+    # (every tender-feed and bid-submit request), so it's a column rather
+    # than a per-request join; the PaymentOverride table is the audited
+    # system of record for who/why/when.
+    payment_override_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="contractor_profile")
 
     @property
-    def is_subscribed(self) -> bool:
+    def is_payment_active(self) -> bool:
         return self.subscription_status in (SubscriptionStatus.active, SubscriptionStatus.trialing)
+
+    # Kept for backward compatibility with existing call sites written
+    # before the payment-gate/verification-gate split; means the same
+    # thing as is_payment_active.
+    @property
+    def is_subscribed(self) -> bool:
+        return self.is_payment_active
+
+    # THE single source of truth for marketplace activation (spec §8-11,
+    # decision D-002/D-003, checklist P0 "docs approved but payment
+    # absent"). Every route that gates tender visibility, drawings, or
+    # bidding must check this — never verification_status alone, and never
+    # subscription_status alone.
+    @property
+    def is_verified_active(self) -> bool:
+        if self.is_suspended:
+            return False
+        if self.verification_status != VerificationStatus.approved:
+            return False
+        return self.is_payment_active or self.payment_override_active
+
+    # Human-facing lifecycle status (spec §2.13). Purely derived — never
+    # stored — so it can never drift out of sync with the fields it's
+    # computed from.
+    @property
+    def marketplace_status(self) -> str:
+        if self.is_suspended:
+            return "suspended"
+        if self.verification_status == VerificationStatus.incomplete:
+            return "documents_incomplete"
+        if self.verification_status == VerificationStatus.pending_review:
+            return "submitted_for_review"
+        if self.verification_status == VerificationStatus.changes_requested:
+            return "changes_requested"
+        if self.payment_override_active:
+            return "verified_active"
+        if self.is_payment_active:
+            return "verified_active"
+        if self.subscription_status in (SubscriptionStatus.past_due, SubscriptionStatus.failed):
+            return "payment_restricted"
+        return "payment_required"
