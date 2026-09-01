@@ -1,0 +1,160 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/api/client";
+import type { ContractorProfile, Project } from "@/api/types";
+import { formatDeadline, timeRemaining } from "@/lib/format";
+import { QueryError } from "@/components/QueryError";
+import { useI18n } from "@/i18n/I18nContext";
+
+export function ContractorFeedPage() {
+  const { t } = useI18n();
+  const location = useLocation() as { state?: { notice?: string } };
+  const [search, setSearch] = useState("");
+  const [trade, setTrade] = useState("");
+  const [sort, setSort] = useState<"deadline" | "newest">("deadline");
+
+  const { data: profile } = useQuery({
+    queryKey: ["contractor-profile"],
+    queryFn: () => apiFetch<ContractorProfile>("/contractor/profile"),
+  });
+
+  const { data: trades } = useQuery({
+    queryKey: ["contractor-feed-trades"],
+    queryFn: () => apiFetch<string[]>("/contractor/feed/trades"),
+  });
+
+  const {
+    data: projects,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["contractor-feed", search, trade, sort],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (trade) params.set("trade", trade);
+      params.set("sort", sort);
+      return apiFetch<Project[]>(`/contractor/feed?${params.toString()}`);
+    },
+  });
+
+  // marketplace_status is the backend's single derived source of truth for
+  // full access (verification approved AND — real subscription OR admin
+  // override), never the raw subscription_status alone: a contractor with
+  // an admin-granted payment override has no Stripe subscription at all,
+  // but is fully active.
+  const isSubscribed = profile?.marketplace_status === "verified_active";
+  const filtersActive = !!search.trim() || !!trade;
+
+  return (
+    <main className="max-w-5xl mx-auto px-5 py-8">
+      <div className="mb-6">
+        <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">{t("contractor.feed.eyebrow")}</span>
+        <h1 className="font-display text-2xl font-semibold text-navy mb-1">{t("contractor.feed.heading")}</h1>
+        <p className="text-[13.5px] text-steel">{sort === "newest" ? t("contractor.feed.sortedNewest") : t("contractor.feed.sortedClosest")}</p>
+      </div>
+
+      {location.state?.notice && (
+        <p className="text-xs bg-blue-tint text-blue border border-blue rounded px-3 py-2.5 mb-4">{location.state.notice}</p>
+      )}
+
+      {!isSubscribed && (
+        <div className="bg-blue-tint border border-blue rounded px-5 py-4 mb-6 flex items-center justify-between flex-wrap gap-3">
+          <p className="text-sm text-navy">{t("contractor.feed.subscribeBanner")}</p>
+          <Link to="/contractor/subscribe" className="bg-amber hover:bg-amber-dark text-white text-xs font-semibold rounded px-4 py-2 whitespace-nowrap">
+            {t("contractor.feed.viewPlans")}
+          </Link>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2.5 mb-5">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("contractor.feed.searchPlaceholder")}
+          className="border border-border rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
+        />
+        <select
+          value={trade}
+          onChange={(e) => setTrade(e.target.value)}
+          className="border border-border rounded px-3 py-2 text-sm font-mono"
+        >
+          <option value="">{t("contractor.feed.allTrades")}</option>
+          {trades?.map((tr) => (
+            <option key={tr} value={tr}>
+              {tr}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "deadline" | "newest")}
+          className="border border-border rounded px-3 py-2 text-sm font-mono"
+        >
+          <option value="deadline">{t("contractor.feed.sortClosest")}</option>
+          <option value="newest">{t("contractor.feed.sortNewest")}</option>
+        </select>
+      </div>
+
+      {isError && <QueryError onRetry={() => refetch()} />}
+
+      {!isError && !projects?.length && (
+        <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
+          {filtersActive ? t("contractor.feed.noMatch") : t("contractor.feed.noOpenProjects")}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {projects?.map((p) => {
+          const card = (
+            <div className="tblock rounded px-5 pt-4 relative overflow-hidden h-full">
+              <div className="flex justify-between items-start gap-2">
+                <div>
+                  <h3 className="font-display font-semibold text-[16.5px] mb-0.5">{p.title}</h3>
+                  <p className="text-[12.5px] text-steel mb-3">{p.address}</p>
+                </div>
+                {p.my_offer_status && (
+                  <span className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-tint text-green whitespace-nowrap">
+                    {p.my_offer_status === "submitted" ? t("contractor.feed.bidPlaced") : p.my_offer_status}
+                  </span>
+                )}
+              </div>
+              <p className="font-mono text-xs text-blue">{timeRemaining(p.bid_deadline)}</p>
+              <div className="tblock-strip mt-4">
+                <div className="tblock-field">
+                  <span className="k">{t("contractor.feed.deadline")}</span>
+                  <span className="v">{formatDeadline(p.bid_deadline)}</span>
+                </div>
+                <div className="tblock-field">
+                  <span className="k">{t("contractor.feed.offersSoFar")}</span>
+                  <span className="v">{p.offer_count}</span>
+                </div>
+                <div className="tblock-field">
+                  <span className="k">{t("contractor.feed.trade")}</span>
+                  <span className="v">{p.trade || "—"}</span>
+                </div>
+              </div>
+
+              {!isSubscribed && (
+                <div className="absolute inset-0 bg-navy/90 flex flex-col items-center justify-center text-center gap-2.5 px-4">
+                  <div className="text-xl">🔒</div>
+                  <strong className="font-display text-white text-sm">{t("contractor.feed.lockedTitle")}</strong>
+                  <p className="text-[11.5px] text-white/70 max-w-[220px]">{t("contractor.feed.lockedDescription")}</p>
+                </div>
+              )}
+            </div>
+          );
+
+          return isSubscribed ? (
+            <Link key={p.id} to={`/contractor/projects/${p.id}/offer`}>
+              {card}
+            </Link>
+          ) : (
+            <div key={p.id}>{card}</div>
+          );
+        })}
+      </div>
+    </main>
+  );
+}

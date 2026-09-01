@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Test-only dependencies. Not needed to run the app itself, only to run
+# backend/tests/ (`pytest` from the backend/ directory).
+pytest==9.1.1
+moto[s3]==5.2.3

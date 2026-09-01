@@ -1,0 +1,235 @@
+export type ProjectStatus =
+  | "draft"
+  | "open"
+  | "closed"
+  | "under_evaluation"
+  | "awarded"
+  | "no_award"
+  | "canceled"
+  | "expired";
+export type TenderType = "sealed" | "owner_visible";
+export type OfferStatus = "submitted" | "approved" | "rejected" | "withdrawn";
+export type VerificationStatus = "incomplete" | "pending_review" | "changes_requested" | "approved";
+export type DocumentStatus = "not_submitted" | "pending" | "approved" | "rejected";
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+
+export interface Project {
+  id: string;
+  owner_id: string;
+  title: string;
+  address: string;
+  description: string | null;
+  trade: string | null;
+  bid_deadline: string;
+  status: ProjectStatus;
+  tender_type: TenderType;
+  tender_type_locked: boolean;
+  is_suspended: boolean;
+  created_at: string;
+  offer_count: number;
+  my_offer_status: OfferStatus | null;
+}
+
+export interface Drawing {
+  id: string;
+  file_name: string;
+  uploaded_at: string;
+  revision: number;
+  is_current: boolean;
+  url: string | null;
+}
+
+export interface ProjectDetail extends Project {
+  drawings: Drawing[];
+}
+
+export interface Offer {
+  id: string;
+  project_id: string;
+  contractor_id: string | null;
+  amount: string | null;
+  timeline_estimate: string | null;
+  message: string | null;
+  status: OfferStatus;
+  is_suspended: boolean;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+  contractor_company_name?: string | null;
+  contractor_avg_rating?: string | null;
+  contractor_review_count?: number | null;
+  sealed: boolean;
+}
+
+export interface OfferRevision {
+  id: string;
+  offer_id: string;
+  revision_number: number;
+  amount: string;
+  timeline_estimate: string | null;
+  message: string | null;
+  status: OfferStatus;
+  recorded_at: string;
+}
+
+export interface ContractorProfile {
+  user_id: string;
+  company_name: string;
+  license_number: string | null;
+  primary_trade: string | null;
+  service_area: string | null;
+  verification_status: VerificationStatus;
+  is_suspended: boolean;
+  avg_rating: string;
+  review_count: number;
+  subscription_status: SubscriptionStatus | null;
+  subscription_current_period_end: string | null;
+  payment_override_active: boolean;
+  marketplace_status:
+    | "documents_incomplete"
+    | "submitted_for_review"
+    | "changes_requested"
+    | "payment_required"
+    | "payment_restricted"
+    | "verified_active"
+    | "suspended";
+  created_at: string;
+  email?: string | null;
+}
+
+export interface DocumentRequirement {
+  id: string;
+  name: string;
+  description: string | null;
+  is_required: boolean;
+  is_active: boolean;
+  applies_to: "owner" | "contractor";
+  effective_from: string;
+  created_at: string;
+}
+
+export interface ContractorDocument {
+  id: string;
+  contractor_id: string;
+  requirement_id: string;
+  status: DocumentStatus;
+  admin_note: string | null;
+  reviewed_at: string | null;
+  submitted_at: string | null;
+  expires_on: string | null;
+  requirement_name: string | null;
+  requirement_description: string | null;
+  requirement_is_required: boolean | null;
+  requirement_effective_from: string | null;
+}
+
+export interface OwnerProfile {
+  user_id: string;
+  verification_status: VerificationStatus;
+  is_suspended: boolean;
+  marketplace_status: "documents_incomplete" | "submitted_for_review" | "changes_requested" | "verified_active" | "suspended";
+  created_at: string;
+  email?: string | null;
+  full_name?: string | null;
+  project_count: number;
+}
+
+export interface OwnerDocument {
+  id: string;
+  owner_id: string;
+  requirement_id: string;
+  status: DocumentStatus;
+  admin_note: string | null;
+  reviewed_at: string | null;
+  submitted_at: string | null;
+  expires_on: string | null;
+  requirement_name: string | null;
+  requirement_description: string | null;
+  requirement_is_required: boolean | null;
+  requirement_effective_from: string | null;
+}
+
+export interface AdminOffer {
+  id: string;
+  project_id: string;
+  project_title: string;
+  project_status: ProjectStatus;
+  tender_type: TenderType;
+  contractor_id: string | null;
+  contractor_company_name: string | null;
+  amount: string | null;
+  timeline_estimate: string | null;
+  message?: string | null;
+  status: OfferStatus;
+  is_suspended: boolean;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminProject {
+  id: string;
+  owner_id: string;
+  owner_name: string | null;
+  owner_email: string | null;
+  title: string;
+  address: string;
+  description: string | null;
+  trade: string | null;
+  bid_deadline: string;
+  status: ProjectStatus;
+  tender_type: TenderType;
+  tender_type_locked: boolean;
+  is_suspended: boolean;
+  created_at: string;
+  offer_count: number;
+}
+
+export interface AdminProjectDetail {
+  project: AdminProject;
+  offers: AdminOffer[];
+}
+
+export interface Clarification {
+  id: string;
+  project_id: string;
+  // null when redacted for the owner on a still-sealed-and-open tender.
+  contractor_id: string | null;
+  question: string;
+  answer: string | null;
+  shared_with_all: boolean;
+  created_at: string;
+  answered_at: string | null;
+  contractor_company_name: string | null;
+}
+
+export interface ProjectAmendment {
+  id: string;
+  project_id: string;
+  amendment_number: number;
+  summary: string;
+  changed_fields: string;
+  reason: string | null;
+  deadline_extended: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+export interface PaymentOverrideRecord {
+  id: string;
+  granted_by: string;
+  reason: string;
+  created_at: string;
+  revoked_by: string | null;
+  revoked_at: string | null;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  previous_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  created_at: string;
+}
