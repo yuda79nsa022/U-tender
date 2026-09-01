@@ -7,6 +7,7 @@ from app.error_handlers import register_error_handlers
 from app.middleware import MaxBodySizeMiddleware
 from app.routers.admin import router as admin_router
 from app.routers.billing import router as billing_router
+from app.routers.clarifications import router as clarifications_router
 from app.routers.contractor import router as contractor_router
 from app.routers.cron import router as cron_router
 from app.routers.files import router as files_router
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(projects_router)
+app.include_router(clarifications_router)
 app.include_router(offers_router)
 app.include_router(owner_router)
 app.include_router(contractor_router)

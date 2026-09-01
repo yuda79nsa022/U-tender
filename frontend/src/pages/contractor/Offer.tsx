@@ -6,6 +6,7 @@ import type { Offer, ProjectDetail } from "@/api/types";
 import { formatDeadline, timeRemaining } from "@/lib/format";
 import { PageLoading } from "@/components/PageLoading";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { ClarificationsPanel } from "@/components/ClarificationsPanel";
 
 export function ContractorOfferPage() {
   const { id } = useParams<{ id: string }>();
@@ -136,6 +137,10 @@ export function ContractorOfferPage() {
         ) : (
           <p className="text-sm text-steel-light">No drawings were uploaded for this project.</p>
         )}
+      </div>
+
+      <div className="mb-6">
+        <ClarificationsPanel projectId={project.id} role="contractor" canAsk={project.status === "open"} />
       </div>
 
       <ErrorBanner message={error} />

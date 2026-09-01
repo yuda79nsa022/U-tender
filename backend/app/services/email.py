@@ -64,6 +64,33 @@ def notify_password_reset(to_email: str, token: str) -> None:
     )
 
 
+def notify_owner_new_clarification(owner_email: str, project_title: str, project_id: str) -> None:
+    _send(
+        owner_email,
+        f"New question on {project_title}",
+        f"<p>A contractor asked a question about <strong>{project_title}</strong>.</p>"
+        f'<p><a href="{settings.app_url}/owner/projects/{project_id}">Answer it</a></p>',
+    )
+
+
+def notify_clarification_answered(contractor_email: str, project_title: str, project_id: str) -> None:
+    _send(
+        contractor_email,
+        f"Your question was answered — {project_title}",
+        f"<p>The owner of <strong>{project_title}</strong> answered your question.</p>"
+        f'<p><a href="{settings.app_url}/contractor/projects/{project_id}/offer">View the answer</a></p>',
+    )
+
+
+def notify_contractor_tender_amended(contractor_email: str, project_title: str, project_id: str, summary: str) -> None:
+    _send(
+        contractor_email,
+        f"Update to {project_title}",
+        f"<p><strong>{project_title}</strong> was updated: {summary}</p>"
+        f'<p><a href="{settings.app_url}/contractor/projects/{project_id}/offer">Review the changes</a></p>',
+    )
+
+
 def notify_owner_deadline_approaching(owner_email: str, project_title: str, project_id: str, offer_count: int) -> None:
     plural = "" if offer_count == 1 else "s"
     _send(

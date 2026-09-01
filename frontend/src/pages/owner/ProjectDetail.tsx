@@ -7,6 +7,7 @@ import { timeRemaining, stars } from "@/lib/format";
 import { RatingInput } from "@/components/RatingInput";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { PageLoading } from "@/components/PageLoading";
+import { ClarificationsPanel } from "@/components/ClarificationsPanel";
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.detail : fallback;
@@ -282,6 +283,9 @@ export function OwnerProjectDetailPage() {
               {project.description}
             </div>
           )}
+          <div className="mt-4">
+            <ClarificationsPanel projectId={project.id} role="owner" />
+          </div>
         </div>
 
         <div>

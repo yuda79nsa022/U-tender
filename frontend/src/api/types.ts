@@ -107,6 +107,30 @@ export interface ContractorDocument {
   requirement_effective_from: string | null;
 }
 
+export interface Clarification {
+  id: string;
+  project_id: string;
+  contractor_id: string;
+  question: string;
+  answer: string | null;
+  shared_with_all: boolean;
+  created_at: string;
+  answered_at: string | null;
+  contractor_company_name: string | null;
+}
+
+export interface ProjectAmendment {
+  id: string;
+  project_id: string;
+  amendment_number: number;
+  summary: string;
+  changed_fields: string;
+  reason: string | null;
+  deadline_extended: boolean;
+  created_by: string;
+  created_at: string;
+}
+
 export interface PaymentOverrideRecord {
   id: string;
   granted_by: string;

@@ -5,12 +5,15 @@ from starlette.responses import StreamingResponse
 from app.db import get_db
 from app.deps import get_current_user
 from app.models.contractor import ContractorProfile
-from app.models.enums import ProjectStatus, TenderType, UserRole
+from app.models.enums import OfferStatus, ProjectStatus, TenderType, UserRole
 from app.models.offer import Offer
 from app.models.project import Project, ProjectDrawing
+from app.models.project_amendment import ProjectAmendment
 from app.models.user import User
+from app.schemas.amendment import ProjectAmendmentOut, ProjectAmendmentRequest
 from app.schemas.project import DrawingOut, ProjectCreate, ProjectDetailOut
 from app.services.drawings import upload_drawings_for_project
+from app.services.email import notify_contractor_tender_amended
 from app.services.storage import drawing_url_expiry_seconds, get_storage
 from app.services.tender_lifecycle import sync_expired_projects
 
@@ -103,6 +106,101 @@ def get_project(project_id: str, user: User = Depends(get_current_user), db: Ses
     if not project or not _can_view_project(user, project, db):
         raise HTTPException(status_code=404, detail="Project not found.")
     return _serialize_detail(project, db)
+
+
+# A published, material change to a tender (spec §2.8/§2.12, D-007) — a
+# permanent numbered record, never a silent edit. changed_fields only
+# lists what actually differs from before, so a no-op PATCH (same values
+# resubmitted) creates no amendment row and bumps nothing.
+@router.patch("/{project_id}", response_model=ProjectDetailOut)
+def amend_project(
+    project_id: str, payload: ProjectAmendmentRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    sync_expired_projects(db)
+    project = db.get(Project, project_id)
+    if not project or project.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    if project.status not in (ProjectStatus.draft, ProjectStatus.open, ProjectStatus.closed, ProjectStatus.under_evaluation):
+        raise HTTPException(status_code=400, detail="This project can no longer be amended.")
+
+    changed: list[str] = []
+
+    if payload.title is not None:
+        title = payload.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty.")
+        if title != project.title:
+            changed.append("title")
+            project.title = title
+
+    if payload.description is not None and payload.description != project.description:
+        changed.append("description")
+        project.description = payload.description or None
+
+    if payload.trade is not None and payload.trade != project.trade:
+        changed.append("trade")
+        project.trade = payload.trade or None
+
+    deadline_extended = False
+    if payload.bid_deadline is not None and payload.bid_deadline != project.bid_deadline:
+        # A bid already locks the tender type (spec D-001) for the same
+        # reason a deadline can't then be pulled earlier out from under
+        # bidders who priced against the original window.
+        if payload.bid_deadline < project.bid_deadline and project.tender_type_locked:
+            raise HTTPException(status_code=400, detail="Cannot move the deadline earlier once bids have been submitted.")
+        deadline_extended = payload.bid_deadline > project.bid_deadline
+        changed.append("bid_deadline")
+        project.bid_deadline = payload.bid_deadline
+
+    if not changed:
+        raise HTTPException(status_code=400, detail="No changes were provided.")
+
+    amendment_number = (
+        db.query(ProjectAmendment).filter(ProjectAmendment.project_id == project_id).count() + 1
+    )
+    summary = f"Updated {', '.join(changed)}."
+    db.add(
+        ProjectAmendment(
+            project_id=project_id,
+            amendment_number=amendment_number,
+            summary=summary,
+            changed_fields=", ".join(changed),
+            reason=(payload.reason or "").strip() or None,
+            deadline_extended=deadline_extended,
+            created_by=user.id,
+        )
+    )
+    project.revision += 1
+    db.commit()
+    db.refresh(project)
+
+    # Best-effort — every contractor with a live (non-withdrawn) bid gets
+    # notified; a failed send never rolls back the amendment itself.
+    bidder_ids = (
+        db.query(Offer.contractor_id)
+        .filter(Offer.project_id == project_id, Offer.status != OfferStatus.withdrawn)
+        .distinct()
+        .all()
+    )
+    for (contractor_id,) in bidder_ids:
+        contractor_user = db.get(User, contractor_id)
+        if contractor_user:
+            notify_contractor_tender_amended(contractor_user.email, project.title, project_id, summary)
+
+    return _serialize_detail(project, db)
+
+
+@router.get("/{project_id}/amendments", response_model=list[ProjectAmendmentOut])
+def list_amendments(project_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if not project or not _can_view_project(user, project, db):
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return (
+        db.query(ProjectAmendment)
+        .filter(ProjectAmendment.project_id == project_id)
+        .order_by(ProjectAmendment.amendment_number.asc())
+        .all()
+    )
 
 
 @router.post("/{project_id}/drawings", response_model=ProjectDetailOut)
