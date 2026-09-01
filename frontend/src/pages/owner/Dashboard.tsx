@@ -5,6 +5,7 @@ import { apiFetch } from "@/api/client";
 import type { Project, ProjectStatus } from "@/api/types";
 import { formatDeadline } from "@/lib/format";
 import { QueryError } from "@/components/QueryError";
+import { useI18n } from "@/i18n/I18nContext";
 
 function badgeClasses(status: string) {
   switch (status) {
@@ -23,17 +24,20 @@ function badgeClasses(status: string) {
   }
 }
 
-const STATUS_FILTERS: { value: ProjectStatus | "all"; label: string }[] = [
-  { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "open", label: "Open" },
-  { value: "closed", label: "Awaiting review" },
-  { value: "under_evaluation", label: "Under evaluation" },
-  { value: "awarded", label: "Awarded" },
-  { value: "no_award", label: "No award" },
-  { value: "canceled", label: "Canceled" },
-  { value: "expired", label: "Expired" },
-];
+function statusFilters(t: (key: string) => string): { value: ProjectStatus | "all"; label: string }[] {
+  const d = "owner.dashboard";
+  return [
+    { value: "all", label: t(`${d}.statusAll`) },
+    { value: "draft", label: t(`${d}.statusDraft`) },
+    { value: "open", label: t(`${d}.statusOpen`) },
+    { value: "closed", label: t(`${d}.statusAwaitingReview`) },
+    { value: "under_evaluation", label: t(`${d}.statusUnderEvaluation`) },
+    { value: "awarded", label: t(`${d}.statusAwarded`) },
+    { value: "no_award", label: t(`${d}.statusNoAward`) },
+    { value: "canceled", label: t(`${d}.statusCanceled`) },
+    { value: "expired", label: t(`${d}.statusExpired`) },
+  ];
+}
 
 function KpiCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
@@ -45,6 +49,7 @@ function KpiCard({ label, value, highlight }: { label: string; value: number; hi
 }
 
 export function OwnerDashboardPage() {
+  const { t } = useI18n();
   const {
     data: projects,
     isError,
@@ -86,22 +91,22 @@ export function OwnerDashboardPage() {
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
           <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">
-            Owner dashboard
+            {t("owner.dashboard.eyebrow")}
           </span>
-          <h1 className="font-display text-2xl font-semibold text-navy">Your projects</h1>
+          <h1 className="font-display text-2xl font-semibold text-navy">{t("owner.dashboard.heading")}</h1>
         </div>
         <Link to="/owner/projects/new" className="bg-amber hover:bg-amber-dark text-white font-semibold text-sm rounded px-5 py-2.5">
-          + New project
+          {t("owner.dashboard.newProject")}
         </Link>
       </div>
 
       {!!projects?.length && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-          <KpiCard label="Open" value={kpis.open} />
-          <KpiCard label="Awaiting review" value={kpis.awaitingReview} highlight={kpis.awaitingReview > 0} />
-          <KpiCard label="Under evaluation" value={kpis.underEvaluation} />
-          <KpiCard label="Awarded" value={kpis.awarded} />
-          <KpiCard label="Total offers" value={kpis.totalOffers} />
+          <KpiCard label={t("owner.dashboard.kpiOpen")} value={kpis.open} />
+          <KpiCard label={t("owner.dashboard.kpiAwaitingReview")} value={kpis.awaitingReview} highlight={kpis.awaitingReview > 0} />
+          <KpiCard label={t("owner.dashboard.kpiUnderEvaluation")} value={kpis.underEvaluation} />
+          <KpiCard label={t("owner.dashboard.kpiAwarded")} value={kpis.awarded} />
+          <KpiCard label={t("owner.dashboard.kpiTotalOffers")} value={kpis.totalOffers} />
         </div>
       )}
 
@@ -109,11 +114,11 @@ export function OwnerDashboardPage() {
 
       {!isError && !projects?.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
-          You haven't posted a project yet.{" "}
+          {t("owner.dashboard.emptyStatePrefix")}{" "}
           <Link to="/owner/projects/new" className="text-navy underline">
-            Post your first one
+            {t("owner.dashboard.emptyStateLink")}
           </Link>{" "}
-          to start receiving offers.
+          {t("owner.dashboard.emptyStateSuffix")}
         </div>
       )}
 
@@ -122,7 +127,7 @@ export function OwnerDashboardPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title or address…"
+            placeholder={t("owner.dashboard.searchPlaceholder")}
             className="border border-border rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
           />
           <select
@@ -130,7 +135,7 @@ export function OwnerDashboardPage() {
             onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | "all")}
             className="border border-border rounded px-3 py-2 text-sm font-mono"
           >
-            {STATUS_FILTERS.map((f) => (
+            {statusFilters(t).map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
               </option>
@@ -141,16 +146,16 @@ export function OwnerDashboardPage() {
             onChange={(e) => setTenderTypeFilter(e.target.value as "all" | "sealed" | "owner_visible")}
             className="border border-border rounded px-3 py-2 text-sm font-mono"
           >
-            <option value="all">All tender types</option>
-            <option value="sealed">Sealed</option>
-            <option value="owner_visible">Owner-visible</option>
+            <option value="all">{t("owner.dashboard.allTenderTypes")}</option>
+            <option value="sealed">{t("owner.dashboard.sealed")}</option>
+            <option value="owner_visible">{t("owner.dashboard.ownerVisible")}</option>
           </select>
         </div>
       )}
 
       {!isError && projects?.length && !filtered.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
-          {filtersActive ? "No projects match your filters." : "Nothing here."}
+          {filtersActive ? t("owner.dashboard.noMatch") : t("owner.dashboard.nothingHere")}
         </div>
       )}
 
@@ -168,25 +173,25 @@ export function OwnerDashboardPage() {
                     {p.status.replace(/_/g, " ")}
                   </span>
                   {p.tender_type === "sealed" && (
-                    <span className="font-mono text-[9px] uppercase text-steel-light">sealed</span>
+                    <span className="font-mono text-[9px] uppercase text-steel-light">{t("owner.dashboard.sealed")}</span>
                   )}
                 </div>
               </div>
               <p className="font-mono text-xs text-blue">
-                {p.offer_count} offer{p.offer_count === 1 ? "" : "s"} received
-                {p.status === "closed" && <span className="text-amber-dark"> · ready to review</span>}
+                {p.offer_count} {t("owner.dashboard.offersReceived")}
+                {p.status === "closed" && <span className="text-amber-dark"> · {t("owner.dashboard.readyToReview")}</span>}
               </p>
               <div className="tblock-strip mt-4">
                 <div className="tblock-field">
-                  <span className="k">Deadline</span>
+                  <span className="k">{t("owner.dashboard.deadline")}</span>
                   <span className="v">{formatDeadline(p.bid_deadline)}</span>
                 </div>
                 <div className="tblock-field">
-                  <span className="k">Trade</span>
+                  <span className="k">{t("owner.dashboard.trade")}</span>
                   <span className="v">{p.trade || "—"}</span>
                 </div>
                 <div className="tblock-field">
-                  <span className="k">Posted</span>
+                  <span className="k">{t("owner.dashboard.posted")}</span>
                   <span className="v">
                     {new Date(p.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </span>

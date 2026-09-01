@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/api/client";
 import type { Clarification } from "@/api/types";
+import { useI18n } from "@/i18n/I18nContext";
 
 export function ClarificationsPanel({
   projectId,
@@ -12,6 +13,7 @@ export function ClarificationsPanel({
   role: "owner" | "contractor";
   canAsk?: boolean;
 }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
   const [sharedWithAll, setSharedWithAll] = useState(true);
@@ -38,7 +40,7 @@ export function ClarificationsPanel({
       setQuestion("");
       invalidate();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not submit your question."),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : t("clarifications.askError")),
   });
 
   const answerMutation = useMutation({
@@ -51,17 +53,17 @@ export function ClarificationsPanel({
       setDrafts((d) => ({ ...d, [clarificationId]: "" }));
       invalidate();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not submit your answer."),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : t("clarifications.answerError")),
   });
 
   return (
     <div className="bg-white border border-border rounded px-5 py-4.5">
-      <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-3">Questions & answers</h3>
+      <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-3">{t("clarifications.heading")}</h3>
 
       {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2 mb-3">{error}</p>}
 
       {!clarifications?.length ? (
-        <p className="text-[12.5px] text-steel-light mb-3">No questions yet.</p>
+        <p className="text-[12.5px] text-steel-light mb-3">{t("clarifications.noQuestions")}</p>
       ) : (
         <ul className="space-y-3 mb-4">
           {clarifications.map((c) => (
@@ -71,9 +73,9 @@ export function ClarificationsPanel({
                   (c.contractor_company_name ? (
                     <span className="font-mono text-[10px] text-steel-light">{c.contractor_company_name}</span>
                   ) : (
-                    <span className="font-mono text-[10px] text-steel-light italic">sealed bidder</span>
+                    <span className="font-mono text-[10px] text-steel-light italic">{t("clarifications.sealedBidder")}</span>
                   ))}
-                {!c.shared_with_all && <span className="font-mono text-[9px] uppercase text-amber-dark">private</span>}
+                {!c.shared_with_all && <span className="font-mono text-[9px] uppercase text-amber-dark">{t("clarifications.privateTag")}</span>}
               </div>
               <p className="text-[13px] text-navy">{c.question}</p>
               {c.answer ? (
@@ -83,7 +85,7 @@ export function ClarificationsPanel({
                   <input
                     value={drafts[c.id] || ""}
                     onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                    placeholder="Write an answer…"
+                    placeholder={t("clarifications.writeAnswerPlaceholder")}
                     className="flex-1 border border-border rounded px-2.5 py-1.5 text-xs"
                   />
                   <button
@@ -92,11 +94,11 @@ export function ClarificationsPanel({
                     disabled={answerMutation.isPending || !drafts[c.id]?.trim()}
                     className="bg-navy hover:bg-navy-deep disabled:opacity-40 text-white text-xs font-semibold rounded px-3 py-1.5"
                   >
-                    Answer
+                    {t("clarifications.answerButton")}
                   </button>
                 </div>
               ) : (
-                <p className="text-[12px] text-steel-light mt-1 italic">Awaiting an answer from the owner.</p>
+                <p className="text-[12px] text-steel-light mt-1 italic">{t("clarifications.awaitingAnswer")}</p>
               )}
             </li>
           ))}
@@ -109,13 +111,13 @@ export function ClarificationsPanel({
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             rows={2}
-            placeholder="Ask the owner a question about this project…"
+            placeholder={t("clarifications.askPlaceholder")}
             className="w-full border border-border rounded px-3 py-2 text-sm resize-y mb-2"
           />
           <div className="flex items-center justify-between gap-2">
             <label className="flex items-center gap-1.5 text-[11.5px] text-steel">
               <input type="checkbox" checked={sharedWithAll} onChange={(e) => setSharedWithAll(e.target.checked)} />
-              Share this Q&amp;A with other bidders once answered
+              {t("clarifications.shareCheckboxLabel")}
             </label>
             <button
               type="button"
@@ -123,7 +125,7 @@ export function ClarificationsPanel({
               disabled={askMutation.isPending || !question.trim()}
               className="bg-amber hover:bg-amber-dark disabled:opacity-40 text-white text-xs font-semibold rounded px-4 py-2"
             >
-              Ask
+              {t("clarifications.askButton")}
             </button>
           </div>
         </div>

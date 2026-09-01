@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorDocument, DocumentRequirement } from "@/api/types";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { useI18n } from "@/i18n/I18nContext";
 
 export function ContractorVerifyPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [companyName, setCompanyName] = useState("");
@@ -31,7 +33,7 @@ export function ContractorVerifyPage() {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["contractor-documents"] });
     },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not upload document."),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : t("contractor.verify.uploadError")),
   });
 
   const submitMutation = useMutation({
@@ -47,21 +49,21 @@ export function ContractorVerifyPage() {
     try {
       await submitMutation.mutateAsync();
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Could not submit for review.");
+      setError(err instanceof ApiError ? err.detail : t("contractor.verify.submitError"));
     }
   }
 
   return (
     <main className="max-w-4xl mx-auto px-5 py-10">
-      <span className="font-mono text-[11px] uppercase tracking-widest text-amber-dark block mb-2">Contractor · Account verification</span>
-      <h1 className="font-display text-2xl font-semibold text-navy mb-2">Verify your company</h1>
-      <p className="text-sm text-steel mb-8">Submit the documents below so a site admin can activate your account.</p>
+      <span className="font-mono text-[11px] uppercase tracking-widest text-amber-dark block mb-2">{t("contractor.verify.eyebrow")}</span>
+      <h1 className="font-display text-2xl font-semibold text-navy mb-2">{t("contractor.verify.heading")}</h1>
+      <p className="text-sm text-steel mb-8">{t("contractor.verify.description")}</p>
 
       <ErrorBanner message={error} />
 
       <form onSubmit={handleSubmit} className="mb-10 grid gap-4 max-w-md">
         <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">Company name</label>
+          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">{t("contractor.verify.companyName")}</label>
           <input
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
@@ -70,7 +72,7 @@ export function ContractorVerifyPage() {
           />
         </div>
         <div>
-          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">License number</label>
+          <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1">{t("contractor.verify.licenseNumber")}</label>
           <input
             value={licenseNumber}
             onChange={(e) => setLicenseNumber(e.target.value)}
@@ -81,8 +83,8 @@ export function ContractorVerifyPage() {
         <table className="w-full border-collapse mt-4">
           <thead>
             <tr className="text-left">
-              <th className="font-mono text-[10px] uppercase text-steel border-b-2 border-navy py-2">Document</th>
-              <th className="font-mono text-[10px] uppercase text-steel border-b-2 border-navy py-2">Status</th>
+              <th className="font-mono text-[10px] uppercase text-steel border-b-2 border-navy py-2">{t("contractor.verify.document")}</th>
+              <th className="font-mono text-[10px] uppercase text-steel border-b-2 border-navy py-2">{t("contractor.verify.statusCol")}</th>
               <th className="border-b-2 border-navy py-2"></th>
             </tr>
           </thead>
@@ -92,7 +94,9 @@ export function ContractorVerifyPage() {
                 <td className="py-3">
                   <div className="font-display font-semibold text-sm">{req.name}</div>
                   <div className="text-xs text-steel-light">{req.description}</div>
-                  <span className="font-mono text-[9.5px] uppercase text-steel-light">{req.is_required ? "Required" : "Optional"}</span>
+                  <span className="font-mono text-[9.5px] uppercase text-steel-light">
+                    {req.is_required ? t("contractor.verify.required") : t("contractor.verify.optional")}
+                  </span>
                 </td>
                 <td className="py-3 font-mono text-xs capitalize">{statusFor(req.id).replace("_", " ")}</td>
                 <td className="py-3">
@@ -118,7 +122,7 @@ export function ContractorVerifyPage() {
           disabled={submitMutation.isPending}
           className="mt-4 bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit"
         >
-          {submitMutation.isPending ? "Submitting…" : "Submit for review"}
+          {submitMutation.isPending ? t("contractor.verify.submitting") : t("contractor.verify.submit")}
         </button>
       </form>
     </main>

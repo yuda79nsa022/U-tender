@@ -8,6 +8,7 @@ import { RatingInput } from "@/components/RatingInput";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { PageLoading } from "@/components/PageLoading";
 import { ClarificationsPanel } from "@/components/ClarificationsPanel";
+import { useI18n } from "@/i18n/I18nContext";
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.detail : fallback;
@@ -21,7 +22,7 @@ interface Review {
   created_at: string;
 }
 
-function EvaluationSummary({ offers }: { offers: Offer[] }) {
+function EvaluationSummary({ offers, t }: { offers: Offer[]; t: (key: string) => string }) {
   const active = offers.filter((o) => o.status !== "withdrawn" && o.amount !== null);
   if (active.length < 2) return null;
 
@@ -34,38 +35,38 @@ function EvaluationSummary({ offers }: { offers: Offer[] }) {
     <div className="grid grid-cols-3 gap-2.5 mb-4">
       <div className="border border-border bg-white rounded px-3 py-2.5">
         <div className="font-display text-lg font-semibold text-green leading-none">${low.toLocaleString()}</div>
-        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Lowest bid</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">{t("owner.projectDetail.lowestBid")}</div>
       </div>
       <div className="border border-border bg-white rounded px-3 py-2.5">
         <div className="font-display text-lg font-semibold text-navy leading-none">
           ${Math.round(avg).toLocaleString()}
         </div>
-        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Average bid</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">{t("owner.projectDetail.averageBid")}</div>
       </div>
       <div className="border border-border bg-white rounded px-3 py-2.5">
         <div className="font-display text-lg font-semibold text-steel leading-none">${high.toLocaleString()}</div>
-        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Highest bid</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">{t("owner.projectDetail.highestBid")}</div>
       </div>
     </div>
   );
 }
 
-function DrawingHistory({ projectId }: { projectId: string }) {
+function DrawingHistory({ projectId, t }: { projectId: string; t: (key: string) => string }) {
   const { data: history } = useQuery({
     queryKey: ["drawing-history", projectId],
     queryFn: () => apiFetch<Drawing[]>(`/projects/${projectId}/drawings/history`),
   });
 
-  if (!history?.length) return <p className="mt-2 font-mono text-[10.5px] text-steel-light">No revision history yet.</p>;
+  if (!history?.length) return <p className="mt-2 font-mono text-[10.5px] text-steel-light">{t("owner.projectDetail.noHistory")}</p>;
 
   return (
     <ul className="mt-2 space-y-1 border-t border-white/20 pt-2">
       {history.map((d) => (
         <li key={d.id} className={`font-mono text-[10.5px] ${d.is_current ? "text-white" : "text-white/40"}`}>
-          v{d.revision} · {d.file_name} {d.is_current && "(current)"}{" "}
+          v{d.revision} · {d.file_name} {d.is_current && t("owner.projectDetail.current")}{" "}
           {d.url && (
             <a href={d.url} target="_blank" rel="noreferrer" className="underline">
-              view
+              {t("owner.projectDetail.view")}
             </a>
           )}
         </li>
@@ -92,6 +93,7 @@ function statusBadgeClasses(status: string) {
 }
 
 export function OwnerProjectDetailPage() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [rating, setRating] = useState(0);
@@ -128,7 +130,7 @@ export function OwnerProjectDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["owner-offers", id] });
       queryClient.invalidateQueries({ queryKey: ["owner-projects"] });
     },
-    onError: (err) => setError(errorMessage(err, "Could not approve this offer.")),
+    onError: (err) => setError(errorMessage(err, t("owner.projectDetail.approveError"))),
   });
 
   const addDrawingsMutation = useMutation({
@@ -138,7 +140,7 @@ export function OwnerProjectDetailPage() {
       drawingsFormRef.current?.reset();
       queryClient.invalidateQueries({ queryKey: ["project", id] });
     },
-    onError: (err) => setError(errorMessage(err, "Could not add drawings.")),
+    onError: (err) => setError(errorMessage(err, t("owner.projectDetail.drawingsError"))),
   });
 
   const reviewMutation = useMutation({
@@ -151,7 +153,7 @@ export function OwnerProjectDetailPage() {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["owner-review", id] });
     },
-    onError: (err) => setError(errorMessage(err, "Could not submit review.")),
+    onError: (err) => setError(errorMessage(err, t("owner.projectDetail.reviewError"))),
   });
 
   const lifecycleMutation = useMutation({
@@ -162,7 +164,7 @@ export function OwnerProjectDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["project", id] });
       queryClient.invalidateQueries({ queryKey: ["owner-projects"] });
     },
-    onError: (err) => setError(errorMessage(err, "Could not update this project's status.")),
+    onError: (err) => setError(errorMessage(err, t("owner.projectDetail.statusError"))),
   });
 
   if (!project) return <PageLoading />;
@@ -174,12 +176,12 @@ export function OwnerProjectDetailPage() {
       <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
         <div>
           <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">{project.title}</span>
-          <h1 className="font-display text-2xl font-semibold text-navy mb-1">Review offers</h1>
+          <h1 className="font-display text-2xl font-semibold text-navy mb-1">{t("owner.projectDetail.reviewOffers")}</h1>
           <p className="text-[13.5px] text-steel">{project.address}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full bg-blue-tint text-steel">
-            {project.tender_type === "sealed" ? "Sealed" : "Owner-visible"}
+            {project.tender_type === "sealed" ? t("owner.projectDetail.sealedBadge") : t("owner.projectDetail.ownerVisibleBadge")}
           </span>
           <span className={`font-mono text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full ${statusBadgeClasses(project.status)}`}>
             {project.status.replace(/_/g, " ")}
@@ -201,7 +203,7 @@ export function OwnerProjectDetailPage() {
               disabled={lifecycleMutation.isPending}
               className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white text-xs font-semibold rounded px-4 py-2"
             >
-              Publish — start accepting bids
+              {t("owner.projectDetail.publish")}
             </button>
           )}
           {project.status === "open" && (
@@ -211,7 +213,7 @@ export function OwnerProjectDetailPage() {
               disabled={lifecycleMutation.isPending}
               className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-xs font-semibold rounded px-4 py-2"
             >
-              Close bidding early
+              {t("owner.projectDetail.closeEarly")}
             </button>
           )}
           {project.status === "closed" && (
@@ -221,7 +223,7 @@ export function OwnerProjectDetailPage() {
               disabled={lifecycleMutation.isPending}
               className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-xs font-semibold rounded px-4 py-2"
             >
-              Start evaluation
+              {t("owner.projectDetail.startEvaluation")}
             </button>
           )}
           {(project.status === "closed" || project.status === "under_evaluation") && (
@@ -231,7 +233,7 @@ export function OwnerProjectDetailPage() {
               disabled={lifecycleMutation.isPending}
               className="bg-red-tint text-red text-xs font-semibold rounded px-4 py-2"
             >
-              Mark no award
+              {t("owner.projectDetail.markNoAward")}
             </button>
           )}
           <button
@@ -240,7 +242,7 @@ export function OwnerProjectDetailPage() {
             disabled={lifecycleMutation.isPending}
             className="text-xs text-red underline disabled:opacity-60"
           >
-            Cancel project
+            {t("owner.projectDetail.cancelProject")}
           </button>
         </div>
       )}
@@ -264,13 +266,13 @@ export function OwnerProjectDetailPage() {
                 ))}
               </ul>
             ) : (
-              <span>No drawings uploaded yet</span>
+              <span>{t("owner.projectDetail.noDrawings")}</span>
             )}
           </div>
 
           {project.drawings.length > 0 && (
             <a href={`${API_URL}/projects/${project.id}/drawings-zip`} className="mt-2.5 inline-block font-mono text-xs text-blue underline">
-              Download all as .zip ({project.drawings.length} file{project.drawings.length === 1 ? "" : "s"})
+              {t("owner.projectDetail.downloadZip")} ({project.drawings.length})
             </a>
           )}
           <button
@@ -278,9 +280,9 @@ export function OwnerProjectDetailPage() {
             onClick={() => setShowHistory((v) => !v)}
             className="mt-2.5 block font-mono text-xs text-steel underline"
           >
-            {showHistory ? "Hide" : "View"} revision history
+            {showHistory ? t("owner.projectDetail.hideHistory") : t("owner.projectDetail.viewHistory")}
           </button>
-          {showHistory && <DrawingHistory projectId={project.id} />}
+          {showHistory && <DrawingHistory projectId={project.id} t={t} />}
 
           <form
             ref={drawingsFormRef}
@@ -295,10 +297,10 @@ export function OwnerProjectDetailPage() {
               type="submit"
               className="border border-navy text-navy hover:bg-navy hover:text-white text-xs font-semibold rounded px-3 py-1.5 whitespace-nowrap"
             >
-              Add drawings
+              {t("owner.projectDetail.addDrawings")}
             </button>
           </form>
-          <p className="text-[10.5px] text-steel-light mt-1">You can also upload a .zip folder of drawings.</p>
+          <p className="text-[10.5px] text-steel-light mt-1">{t("owner.projectDetail.zipHint")}</p>
           <div
             className={`mt-3.5 px-3.5 py-3 rounded font-mono text-xs border-l-[3px] ${
               deadlinePassed ? "bg-red-tint text-red border-red" : "bg-blue-tint text-blue border-blue"
@@ -308,7 +310,7 @@ export function OwnerProjectDetailPage() {
           </div>
           {project.description && (
             <div className="mt-4 text-sm text-steel">
-              <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-1">Scope</h3>
+              <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-1">{t("owner.projectDetail.scope")}</h3>
               {project.description}
             </div>
           )}
@@ -320,29 +322,26 @@ export function OwnerProjectDetailPage() {
         <div>
           {!offers?.length ? (
             <div className="border border-dashed border-border rounded p-8 text-center text-sm text-steel">
-              No offers yet. Contractors can bid until the deadline above.
+              {t("owner.projectDetail.noOffersYet")}
             </div>
           ) : offers[0]?.sealed ? (
             <div className="border border-dashed border-blue bg-blue-tint rounded p-8 text-center">
               <div className="text-xl mb-2">🔒</div>
               <p className="text-sm text-navy font-semibold mb-1">
-                {offers.length} sealed bid{offers.length === 1 ? "" : "s"} received
+                {offers.length} {t("owner.projectDetail.sealedBidsReceived")}
               </p>
-              <p className="text-[12.5px] text-steel max-w-sm mx-auto">
-                This is a sealed tender — bidder identities and amounts stay hidden from you until bidding closes.
-                Close bidding to reveal and evaluate them.
-              </p>
+              <p className="text-[12.5px] text-steel max-w-sm mx-auto">{t("owner.projectDetail.sealedExplanation")}</p>
             </div>
           ) : (
             <>
-              <EvaluationSummary offers={offers} />
+              <EvaluationSummary offers={offers} t={t} />
               <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Contractor</th>
-                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Rating</th>
-                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Bid</th>
-                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Timeline</th>
+                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">{t("owner.projectDetail.contractorCol")}</th>
+                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">{t("owner.projectDetail.ratingCol")}</th>
+                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">{t("owner.projectDetail.bidCol")}</th>
+                  <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">{t("owner.projectDetail.timelineCol")}</th>
                   <th className="border-b-2 border-navy py-2 px-2.5"></th>
                 </tr>
               </thead>
@@ -351,8 +350,14 @@ export function OwnerProjectDetailPage() {
                   <tr key={o.id} className="border-b border-border">
                     <td className="py-3 px-2.5">
                       <div className="font-display font-semibold text-[13.5px]">
-                        {o.contractor_company_name ?? "Contractor"}
-                        {o.revision > 1 && <span className="text-steel-light font-normal"> · revised x{o.revision - 1}</span>}
+                        {o.contractor_company_name ?? t("owner.projectDetail.contractorCol")}
+                        {o.revision > 1 && (
+                          <span className="text-steel-light font-normal">
+                            {" "}
+                            · {t("owner.projectDetail.revisedSuffix")}
+                            {o.revision - 1}
+                          </span>
+                        )}
                       </div>
                       {o.message && <div className="text-xs text-steel-light mt-0.5 max-w-xs">{o.message}</div>}
                     </td>
@@ -380,10 +385,10 @@ export function OwnerProjectDetailPage() {
                           disabled={approveMutation.isPending}
                           className="bg-navy hover:bg-navy-deep disabled:opacity-60 text-white text-xs font-semibold rounded px-3 py-1.5"
                         >
-                          Approve
+                          {t("owner.projectDetail.approve")}
                         </button>
                       ) : (
-                        <span className="font-mono text-[10px] text-steel-light">Close bidding to award</span>
+                        <span className="font-mono text-[10px] text-steel-light">{t("owner.projectDetail.closeToAwardHint")}</span>
                       )}
                     </td>
                   </tr>
@@ -398,14 +403,14 @@ export function OwnerProjectDetailPage() {
       {approvedOffer && (
         <div className="mt-8 max-w-xl">
           <h3 className="font-mono text-[11px] uppercase tracking-wide text-navy mb-2">
-            Rate {approvedOffer.contractor_company_name ?? "the contractor"}
+            {t("owner.projectDetail.rateContractor")} {approvedOffer.contractor_company_name ?? t("owner.projectDetail.theContractor")}
           </h3>
           {existingReview ? (
             <div className="bg-white border border-border rounded px-4.5 py-4">
               <span className="text-amber text-lg tracking-tight">{stars(existingReview.rating)}</span>
               {existingReview.comment && <p className="text-sm text-steel mt-2">{existingReview.comment}</p>}
               <p className="font-mono text-[10.5px] text-steel-light mt-2">
-                Submitted {new Date(existingReview.created_at).toLocaleDateString()}
+                {t("owner.projectDetail.submittedOn")} {new Date(existingReview.created_at).toLocaleDateString()}
               </p>
             </div>
           ) : (
@@ -421,7 +426,7 @@ export function OwnerProjectDetailPage() {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
-                placeholder="How did the work go? Optional, but helps other owners."
+                placeholder={t("owner.projectDetail.ratingPlaceholder")}
                 className="w-full border border-border rounded px-3 py-2.5 text-sm resize-y"
               />
               <button
@@ -429,7 +434,7 @@ export function OwnerProjectDetailPage() {
                 disabled={!rating || reviewMutation.isPending}
                 className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit"
               >
-                Submit review
+                {t("owner.projectDetail.submitReview")}
               </button>
             </form>
           )}

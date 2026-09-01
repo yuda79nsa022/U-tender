@@ -1,25 +1,27 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
+import { useI18n } from "@/i18n/I18nContext";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `font-mono text-xs uppercase tracking-wide ${isActive ? "text-navy" : "text-steel hover:text-navy"}`;
 
 export function AdminLayout() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen">
       <AppHeader roleLabel="Site Admin" homeHref="/admin/requirements" />
       <div className="max-w-5xl mx-auto px-5 pt-4 flex gap-4">
         <NavLink to="/admin/requirements" className={navClass}>
-          Document requirements
+          {t("admin.nav.requirements")}
         </NavLink>
         <NavLink to="/admin/review" className={navClass}>
-          Review applications
+          {t("admin.nav.review")}
         </NavLink>
         <NavLink to="/admin/contractors" className={navClass}>
-          All contractors
+          {t("admin.nav.contractors")}
         </NavLink>
         <NavLink to="/admin/cms" className={navClass}>
-          Website content
+          {t("admin.nav.cms")}
         </NavLink>
       </div>
       <Outlet />

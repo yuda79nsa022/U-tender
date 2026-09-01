@@ -2,8 +2,10 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, ApiError } from "@/api/client";
 import type { ProjectDetail, TenderType } from "@/api/types";
+import { useI18n } from "@/i18n/I18nContext";
 
 export function OwnerProjectNewPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function OwnerProjectNewPage() {
 
     const form = new FormData(formEl);
     if (!form.get("title") || !form.get("address") || !form.get("bid_deadline")) {
-      setError("Title, address, and deadline are required.");
+      setError(t("owner.projectNew.validationError"));
       return;
     }
     form.set("tender_type", tenderType);
@@ -34,7 +36,7 @@ export function OwnerProjectNewPage() {
       const project = await apiFetch<ProjectDetail>("/projects", { method: "POST", formData: form });
       navigate(`/owner/projects/${project.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Could not create project.");
+      setError(err instanceof ApiError ? err.detail : t("owner.projectNew.submitError"));
     } finally {
       setPending(false);
     }
@@ -42,11 +44,9 @@ export function OwnerProjectNewPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-5 py-8">
-      <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">New project</span>
-      <h1 className="font-display text-2xl font-semibold text-navy mb-1">Post a project</h1>
-      <p className="text-[13.5px] text-steel mb-6">
-        Add your drawings and set a deadline — contractors can only bid before it closes.
-      </p>
+      <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">{t("owner.projectNew.eyebrow")}</span>
+      <h1 className="font-display text-2xl font-semibold text-navy mb-1">{t("owner.projectNew.heading")}</h1>
+      <p className="text-[13.5px] text-steel mb-6">{t("owner.projectNew.description")}</p>
 
       {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2.5 mb-5 max-w-2xl">{error}</p>}
 
@@ -60,65 +60,63 @@ export function OwnerProjectNewPage() {
           className="grid gap-[18px]"
         >
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Tender type</label>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.tenderType")}</label>
             <div className="flex border border-navy rounded overflow-hidden w-fit">
               <button
                 type="button"
                 onClick={() => setTenderType("owner_visible")}
                 className={`px-4 py-2 text-xs font-mono uppercase ${tenderType === "owner_visible" ? "bg-navy text-white" : "bg-white text-navy"}`}
               >
-                Owner-visible
+                {t("owner.projectNew.ownerVisibleToggle")}
               </button>
               <button
                 type="button"
                 onClick={() => setTenderType("sealed")}
                 className={`px-4 py-2 text-xs font-mono uppercase border-s border-navy ${tenderType === "sealed" ? "bg-navy text-white" : "bg-white text-navy"}`}
               >
-                Sealed
+                {t("owner.projectNew.sealedToggle")}
               </button>
             </div>
             <p className="text-xs text-steel-light mt-1.5">
-              {tenderType === "sealed"
-                ? "Bids stay hidden from you until bidding closes. Locked in once the first bid arrives."
-                : "You can see bids as they come in. Locked in once the first bid arrives."}
+              {tenderType === "sealed" ? t("owner.projectNew.sealedHint") : t("owner.projectNew.ownerVisibleHint")}
             </p>
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Project title</label>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.title")}</label>
             <input
               name="title"
               required
-              placeholder="e.g. Maple St. Duplex — Roof Replacement"
+              placeholder={t("owner.projectNew.titlePlaceholder")}
               className="w-full border border-border rounded px-3 py-2.5 text-sm"
             />
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Site address</label>
-            <input name="address" required placeholder="Street, city, state" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.address")}</label>
+            <input name="address" required placeholder={t("owner.projectNew.addressPlaceholder")} className="w-full border border-border rounded px-3 py-2.5 text-sm" />
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Trade</label>
-            <input name="trade" placeholder="e.g. Roofing, Framing, Fencing" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.trade")}</label>
+            <input name="trade" placeholder={t("owner.projectNew.tradePlaceholder")} className="w-full border border-border rounded px-3 py-2.5 text-sm" />
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Scope of work</label>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.scope")}</label>
             <textarea
               name="description"
               rows={4}
-              placeholder="Describe the work you need done. Contractors will use this alongside your drawings to price their offer."
+              placeholder={t("owner.projectNew.scopePlaceholder")}
               className="w-full border border-border rounded px-3 py-2.5 text-sm resize-y"
             />
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Drawings</label>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.drawings")}</label>
             <div className="border border-dashed border-blue bg-blue-tint rounded px-4 py-6 text-center">
               <input type="file" name="drawings" multiple accept=".pdf,.dwg,.jpg,.jpeg,.png,.zip" className="text-xs mx-auto" />
-              <p className="text-[11px] text-blue mt-2">PDF, DWG, JPG, PNG, or a .zip folder of drawings — up to 50MB total</p>
+              <p className="text-[11px] text-blue mt-2">{t("owner.projectNew.drawingsHint")}</p>
             </div>
-            <p className="text-xs text-steel-light mt-1.5">Only approved, subscribed contractors can view these files.</p>
+            <p className="text-xs text-steel-light mt-1.5">{t("owner.projectNew.drawingsAccessNote")}</p>
           </div>
           <div>
-            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Bid deadline</label>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">{t("owner.projectNew.deadline")}</label>
             <input
               type="datetime-local"
               name="bid_deadline"
@@ -126,7 +124,7 @@ export function OwnerProjectNewPage() {
               defaultValue={defaultDeadlineValue}
               className="border border-border rounded px-3 py-2.5 text-sm"
             />
-            <p className="text-xs text-steel-light mt-1.5">No offers are accepted after this time.</p>
+            <p className="text-xs text-steel-light mt-1.5">{t("owner.projectNew.deadlineNote")}</p>
           </div>
           <div className="flex items-center gap-3 mt-1">
             <button
@@ -134,7 +132,7 @@ export function OwnerProjectNewPage() {
               disabled={pending}
               className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit"
             >
-              {pending ? "Posting…" : "Post project"}
+              {pending ? t("owner.projectNew.posting") : t("owner.projectNew.postProject")}
             </button>
             <button
               type="button"
@@ -142,20 +140,18 @@ export function OwnerProjectNewPage() {
               onClick={() => submitProject("draft")}
               className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-sm font-semibold rounded px-5 py-2.5 w-fit"
             >
-              Save as draft
+              {t("owner.projectNew.saveAsDraft")}
             </button>
           </div>
-          <p className="text-xs text-steel-light -mt-2.5">
-            A draft is only visible to you. Publish it later from the project page when you're ready for bids.
-          </p>
+          <p className="text-xs text-steel-light -mt-2.5">{t("owner.projectNew.draftNote")}</p>
         </form>
 
         <div className="bg-white border border-border rounded px-4.5 py-4">
-          <h3 className="font-mono text-[13px] uppercase tracking-wide text-navy mb-2">Before you post</h3>
+          <h3 className="font-mono text-[13px] uppercase tracking-wide text-navy mb-2">{t("owner.projectNew.sidebarHeading")}</h3>
           <ul className="text-[13px] text-steel leading-[1.7] list-disc pl-[18px]">
-            <li>Clear drawings get more accurate offers — include dimensions where you can.</li>
-            <li>Give contractors at least 5–7 days to price the job properly.</li>
-            <li>You won't be charged. Posting and reviewing offers is free for property owners.</li>
+            <li>{t("owner.projectNew.tip1")}</li>
+            <li>{t("owner.projectNew.tip2")}</li>
+            <li>{t("owner.projectNew.tip3")}</li>
           </ul>
         </div>
       </div>

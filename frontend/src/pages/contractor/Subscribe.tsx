@@ -4,25 +4,27 @@ import { apiFetch, ApiError } from "@/api/client";
 import type { ContractorProfile } from "@/api/types";
 import { PageLoading } from "@/components/PageLoading";
 import { ErrorBanner } from "@/components/ErrorBanner";
-
-const FEATURES = [
-  "Unlimited open projects in your service area",
-  "Full drawings and scope details on every listing",
-  "Unlimited offers and revisions before deadline",
-  "Public rating and review profile",
-];
+import { useI18n } from "@/i18n/I18nContext";
 
 function PlanToggle({
   plan,
   setPlan,
   onSubscribe,
   pending,
+  t,
 }: {
   plan: "monthly" | "annual";
   setPlan: (p: "monthly" | "annual") => void;
   onSubscribe: () => void;
   pending: boolean;
+  t: (key: string) => string;
 }) {
+  const features = [
+    t("contractor.subscribe.feature1"),
+    t("contractor.subscribe.feature2"),
+    t("contractor.subscribe.feature3"),
+    t("contractor.subscribe.feature4"),
+  ];
   return (
     <div>
       <div className="inline-flex border border-navy rounded-full overflow-hidden mb-6">
@@ -31,14 +33,14 @@ function PlanToggle({
           onClick={() => setPlan("monthly")}
           className={`font-mono text-xs px-4.5 py-2 uppercase tracking-wide ${plan === "monthly" ? "bg-navy text-white" : "bg-white text-navy"}`}
         >
-          Monthly
+          {t("contractor.subscribe.monthly")}
         </button>
         <button
           type="button"
           onClick={() => setPlan("annual")}
           className={`font-mono text-xs px-4.5 py-2 uppercase tracking-wide border-l border-navy ${plan === "annual" ? "bg-navy text-white" : "bg-white text-navy"}`}
         >
-          Annual — save 15%
+          {t("contractor.subscribe.annual")}
         </button>
       </div>
 
@@ -48,10 +50,10 @@ function PlanToggle({
           <span className="font-mono text-sm font-normal text-steel">/month</span>
         </div>
         <p className="text-xs text-steel mt-2 mb-5">
-          {plan === "monthly" ? "Billed monthly. No lead fees, no commission on top." : "Billed annually at $804. No lead fees, no commission on top."}
+          {plan === "monthly" ? t("contractor.subscribe.priceMonthlyNote") : t("contractor.subscribe.priceAnnualNote")}
         </p>
         <ul className="mb-6">
-          {FEATURES.map((f) => (
+          {features.map((f) => (
             <li key={f} className="flex items-center gap-2 text-[13.5px] py-2 border-t border-border">
               <span className="text-green font-mono font-bold">✓</span> {f}
             </li>
@@ -63,7 +65,7 @@ function PlanToggle({
           disabled={pending}
           className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-full"
         >
-          Start subscription
+          {t("contractor.subscribe.start")}
         </button>
       </div>
     </div>
@@ -71,6 +73,7 @@ function PlanToggle({
 }
 
 export function ContractorSubscribePage() {
+  const { t } = useI18n();
   const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +87,7 @@ export function ContractorSubscribePage() {
     onSuccess: (data) => {
       window.location.href = data.url;
     },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not start checkout. Try again."),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : t("contractor.subscribe.checkoutError")),
   });
 
   const portalMutation = useMutation({
@@ -92,7 +95,7 @@ export function ContractorSubscribePage() {
     onSuccess: (data) => {
       window.location.href = data.url;
     },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : "Could not open billing portal. Try again."),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : t("contractor.subscribe.portalError")),
   });
 
   if (!profile) return <PageLoading />;
@@ -107,24 +110,26 @@ export function ContractorSubscribePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-5 py-8">
-      <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">Contractor access</span>
-      <h1 className="font-display text-2xl font-semibold text-navy mb-1">{isActive ? "Your subscription" : "Subscribe to bid on projects"}</h1>
-      <p className="text-[13.5px] text-steel mb-7">{isActive ? "Manage your plan and billing details." : "One plan, full access. Cancel any time."}</p>
+      <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">{t("contractor.subscribe.eyebrow")}</span>
+      <h1 className="font-display text-2xl font-semibold text-navy mb-1">
+        {isActive ? t("contractor.subscribe.headingActive") : t("contractor.subscribe.headingInactive")}
+      </h1>
+      <p className="text-[13.5px] text-steel mb-7">
+        {isActive ? t("contractor.subscribe.subheadingActive") : t("contractor.subscribe.subheadingInactive")}
+      </p>
 
       <ErrorBanner message={error} />
 
       {isActive ? (
         <div className="bg-white border border-border border-t-4 border-t-green rounded px-7 py-7 max-w-md">
           <span className="font-mono text-[10px] uppercase px-2.5 py-1 rounded-full bg-green-tint text-green">
-            {overrideOnly ? "admin override" : profile.subscription_status}
+            {overrideOnly ? t("contractor.subscribe.overrideBadge") : profile.subscription_status}
           </span>
-          {overrideOnly && (
-            <p className="text-sm text-steel mt-3">
-              An administrator has granted your account full marketplace access without a paid subscription.
-            </p>
-          )}
+          {overrideOnly && <p className="text-sm text-steel mt-3">{t("contractor.subscribe.overrideMessage")}</p>}
           {!overrideOnly && profile.subscription_current_period_end && (
-            <p className="text-sm text-steel mt-3">Renews {new Date(profile.subscription_current_period_end).toLocaleDateString()}</p>
+            <p className="text-sm text-steel mt-3">
+              {t("contractor.subscribe.renews")} {new Date(profile.subscription_current_period_end).toLocaleDateString()}
+            </p>
           )}
           {!overrideOnly && (
             <button
@@ -132,14 +137,14 @@ export function ContractorSubscribePage() {
               onClick={() => portalMutation.mutate()}
               className="mt-5 border border-navy text-navy hover:bg-navy hover:text-white text-sm font-semibold rounded px-5 py-2.5"
             >
-              Manage billing
+              {t("contractor.subscribe.manageBilling")}
             </button>
           )}
         </div>
       ) : (
         <>
-          <PlanToggle plan={plan} setPlan={setPlan} onSubscribe={() => checkoutMutation.mutate()} pending={checkoutMutation.isPending} />
-          <p className="text-xs text-steel-light mt-6 max-w-md">You'll be redirected to Stripe's secure checkout to complete your subscription.</p>
+          <PlanToggle plan={plan} setPlan={setPlan} onSubscribe={() => checkoutMutation.mutate()} pending={checkoutMutation.isPending} t={t} />
+          <p className="text-xs text-steel-light mt-6 max-w-md">{t("contractor.subscribe.checkoutNote")}</p>
         </>
       )}
     </main>

@@ -69,6 +69,277 @@ export interface Dictionary {
     };
     emailVerifyBanner: { message: string; resend: string; sent: string };
   };
+  clarifications: {
+    heading: string;
+    noQuestions: string;
+    sealedBidder: string;
+    privateTag: string;
+    writeAnswerPlaceholder: string;
+    answerButton: string;
+    awaitingAnswer: string;
+    shareCheckboxLabel: string;
+    askPlaceholder: string;
+    askButton: string;
+    askError: string;
+    answerError: string;
+  };
+  contractor: {
+    roleLabel: string;
+    dashboard: {
+      kpiActiveBids: string;
+      kpiProjectsWon: string;
+      kpiTotalBids: string;
+      myBids: string;
+      browseOpenProjects: string;
+      noBidsYetPrefix: string;
+      banner: {
+        documentsIncompleteTitle: string;
+        documentsIncompleteBody: string;
+        documentsIncompleteCta: string;
+        submittedTitle: string;
+        submittedBody: string;
+        submittedCta: string;
+        changesRequestedTitle: string;
+        changesRequestedBody: string;
+        changesRequestedCta: string;
+        paymentRequiredTitle: string;
+        paymentRequiredBody: string;
+        paymentRequiredCta: string;
+        paymentRestrictedTitle: string;
+        paymentRestrictedBody: string;
+        paymentRestrictedCta: string;
+        suspendedTitle: string;
+        suspendedBody: string;
+      };
+    };
+    feed: {
+      eyebrow: string;
+      heading: string;
+      sortedNewest: string;
+      sortedClosest: string;
+      subscribeBanner: string;
+      viewPlans: string;
+      searchPlaceholder: string;
+      allTrades: string;
+      sortClosest: string;
+      sortNewest: string;
+      noMatch: string;
+      noOpenProjects: string;
+      deadline: string;
+      offersSoFar: string;
+      trade: string;
+      bidPlaced: string;
+      lockedTitle: string;
+      lockedDescription: string;
+    };
+    status: {
+      suspendedTitle: string;
+      suspendedBody: string;
+      approvedTitle: string;
+      approvedBody: string;
+      eyebrow: string;
+      heading: string;
+      changesRequestedTitle: string;
+      underReviewTitle: string;
+      submittedOn: string;
+      pending: string;
+      actionNeeded: string;
+      document: string;
+      statusCol: string;
+      required: string;
+      optional: string;
+      adminNote: string;
+      reupload: string;
+      upload: string;
+      footerNote: string;
+    };
+    verify: {
+      eyebrow: string;
+      heading: string;
+      description: string;
+      companyName: string;
+      licenseNumber: string;
+      document: string;
+      statusCol: string;
+      required: string;
+      optional: string;
+      submitting: string;
+      submit: string;
+      uploadError: string;
+      submitError: string;
+    };
+    subscribe: {
+      feature1: string;
+      feature2: string;
+      feature3: string;
+      feature4: string;
+      monthly: string;
+      annual: string;
+      priceMonthlyNote: string;
+      priceAnnualNote: string;
+      start: string;
+      eyebrow: string;
+      headingActive: string;
+      headingInactive: string;
+      subheadingActive: string;
+      subheadingInactive: string;
+      overrideBadge: string;
+      overrideMessage: string;
+      renews: string;
+      manageBilling: string;
+      checkoutNote: string;
+      checkoutError: string;
+      portalError: string;
+    };
+    offer: {
+      deadlineLabel: string;
+      closed: string;
+      scope: string;
+      drawings: string;
+      downloadZip: string;
+      noDrawings: string;
+      biddingClosedNotice: string;
+      yourFinalOffer: string;
+      awardedTo: string;
+      anotherContractor: string;
+      noAwardNotice: string;
+      bidAmount: string;
+      timeline: string;
+      timelinePlaceholder: string;
+      messageToOwner: string;
+      messagePlaceholder: string;
+      updateOffer: string;
+      submitOffer: string;
+      withdraw: string;
+      withdrawing: string;
+      tipsHeading: string;
+      tip1: string;
+      tip2: string;
+      tip3: string;
+      withdrawError: string;
+      submitError: string;
+      notAvailableNotice: string;
+    };
+  };
+  owner: {
+    roleLabel: string;
+    dashboard: {
+      statusAll: string;
+      statusDraft: string;
+      statusOpen: string;
+      statusAwaitingReview: string;
+      statusUnderEvaluation: string;
+      statusAwarded: string;
+      statusNoAward: string;
+      statusCanceled: string;
+      statusExpired: string;
+      eyebrow: string;
+      heading: string;
+      newProject: string;
+      kpiOpen: string;
+      kpiAwaitingReview: string;
+      kpiUnderEvaluation: string;
+      kpiAwarded: string;
+      kpiTotalOffers: string;
+      emptyStatePrefix: string;
+      emptyStateLink: string;
+      emptyStateSuffix: string;
+      searchPlaceholder: string;
+      allTenderTypes: string;
+      sealed: string;
+      ownerVisible: string;
+      noMatch: string;
+      nothingHere: string;
+      offersReceived: string;
+      readyToReview: string;
+      deadline: string;
+      trade: string;
+      posted: string;
+    };
+    projectNew: {
+      eyebrow: string;
+      heading: string;
+      description: string;
+      tenderType: string;
+      ownerVisibleToggle: string;
+      sealedToggle: string;
+      ownerVisibleHint: string;
+      sealedHint: string;
+      title: string;
+      titlePlaceholder: string;
+      address: string;
+      addressPlaceholder: string;
+      trade: string;
+      tradePlaceholder: string;
+      scope: string;
+      scopePlaceholder: string;
+      drawings: string;
+      drawingsHint: string;
+      drawingsAccessNote: string;
+      deadline: string;
+      deadlineNote: string;
+      postProject: string;
+      posting: string;
+      saveAsDraft: string;
+      draftNote: string;
+      sidebarHeading: string;
+      tip1: string;
+      tip2: string;
+      tip3: string;
+      validationError: string;
+      submitError: string;
+    };
+    projectDetail: {
+      reviewOffers: string;
+      sealedBadge: string;
+      ownerVisibleBadge: string;
+      publish: string;
+      closeEarly: string;
+      startEvaluation: string;
+      markNoAward: string;
+      cancelProject: string;
+      noDrawings: string;
+      downloadZip: string;
+      hideHistory: string;
+      viewHistory: string;
+      noHistory: string;
+      current: string;
+      view: string;
+      addDrawings: string;
+      zipHint: string;
+      scope: string;
+      lowestBid: string;
+      averageBid: string;
+      highestBid: string;
+      sealedBidsReceived: string;
+      sealedExplanation: string;
+      noOffersYet: string;
+      contractorCol: string;
+      ratingCol: string;
+      bidCol: string;
+      timelineCol: string;
+      revisedSuffix: string;
+      approve: string;
+      closeToAwardHint: string;
+      rateContractor: string;
+      theContractor: string;
+      submittedOn: string;
+      ratingPlaceholder: string;
+      submitReview: string;
+      approveError: string;
+      drawingsError: string;
+      reviewError: string;
+      statusError: string;
+    };
+  };
+  admin: {
+    nav: {
+      requirements: string;
+      review: string;
+      contractors: string;
+      cms: string;
+    };
+  };
 }
 
 export const en: Dictionary = {
@@ -163,6 +434,280 @@ export const en: Dictionary = {
       sent: "Verification email sent.",
     },
   },
+  clarifications: {
+    heading: "Questions & answers",
+    noQuestions: "No questions yet.",
+    sealedBidder: "sealed bidder",
+    privateTag: "private",
+    writeAnswerPlaceholder: "Write an answer…",
+    answerButton: "Answer",
+    awaitingAnswer: "Awaiting an answer from the owner.",
+    shareCheckboxLabel: "Share this Q&A with other bidders once answered",
+    askPlaceholder: "Ask the owner a question about this project…",
+    askButton: "Ask",
+    askError: "Could not submit your question.",
+    answerError: "Could not submit your answer.",
+  },
+  contractor: {
+    roleLabel: "Contractor",
+    dashboard: {
+      kpiActiveBids: "Active bids",
+      kpiProjectsWon: "Projects won",
+      kpiTotalBids: "Total bids placed",
+      myBids: "My bids",
+      browseOpenProjects: "Browse open projects",
+      noBidsYetPrefix: "You haven't placed any bids yet.",
+      banner: {
+        documentsIncompleteTitle: "Finish verifying your company",
+        documentsIncompleteBody: "Upload your documents so an admin can review your account.",
+        documentsIncompleteCta: "Continue verification",
+        submittedTitle: "Application under review",
+        submittedBody: "An admin is reviewing your documents. We'll notify you once a decision is made.",
+        submittedCta: "View submission",
+        changesRequestedTitle: "Changes requested",
+        changesRequestedBody: "One or more documents need to be re-uploaded before your account can be approved.",
+        changesRequestedCta: "Review and re-upload",
+        paymentRequiredTitle: "Subscribe to unlock bidding",
+        paymentRequiredBody: "You're verified — subscribe to view drawings and submit offers.",
+        paymentRequiredCta: "View plans",
+        paymentRestrictedTitle: "Payment issue on your account",
+        paymentRestrictedBody: "Your subscription payment failed or is past due. Update billing to keep bidding.",
+        paymentRestrictedCta: "Manage billing",
+        suspendedTitle: "Account suspended",
+        suspendedBody: "Your account has been suspended by a site admin. Contact support if you believe this is a mistake.",
+      },
+    },
+    feed: {
+      eyebrow: "Contractor · Open projects",
+      heading: "Projects open for bidding",
+      sortedNewest: "Sorted by most recently posted.",
+      sortedClosest: "Sorted by closing soonest.",
+      subscribeBanner: "You're approved, but drawings and offers stay locked until you subscribe.",
+      viewPlans: "View plans",
+      searchPlaceholder: "Search title, address, or scope…",
+      allTrades: "All trades",
+      sortClosest: "Closing soonest",
+      sortNewest: "Newest first",
+      noMatch: "No projects match your filters.",
+      noOpenProjects: "No open projects right now. Check back soon.",
+      deadline: "Deadline",
+      offersSoFar: "Offers so far",
+      trade: "Trade",
+      bidPlaced: "Bid placed",
+      lockedTitle: "Subscribe to view drawings",
+      lockedDescription: "Unlock full drawings, scope details, and the ability to submit offers.",
+    },
+    status: {
+      suspendedTitle: "Account suspended",
+      suspendedBody:
+        "Your account has been suspended by a site admin. You can't view new projects or submit offers while suspended. Contact support if you believe this is a mistake.",
+      approvedTitle: "You're approved",
+      approvedBody: "Head to your dashboard to browse open projects.",
+      eyebrow: "Contractor · Account verification",
+      heading: "Application status",
+      changesRequestedTitle: "Changes requested — one or more documents need to be re-uploaded",
+      underReviewTitle: "Application under review",
+      submittedOn: "Submitted",
+      pending: "Pending",
+      actionNeeded: "Action needed",
+      document: "Document",
+      statusCol: "Status",
+      required: "Required",
+      optional: "Optional",
+      adminNote: "Admin note:",
+      reupload: "Re-upload",
+      upload: "Upload",
+      footerNote:
+        "You'll be notified as soon as your account is fully approved. Full access to drawings and offers stays locked until then.",
+    },
+    verify: {
+      eyebrow: "Contractor · Account verification",
+      heading: "Verify your company",
+      description: "Submit the documents below so a site admin can activate your account.",
+      companyName: "Company name",
+      licenseNumber: "License number",
+      document: "Document",
+      statusCol: "Status",
+      required: "Required",
+      optional: "Optional",
+      submitting: "Submitting…",
+      submit: "Submit for review",
+      uploadError: "Could not upload document.",
+      submitError: "Could not submit for review.",
+    },
+    subscribe: {
+      feature1: "Unlimited open projects in your service area",
+      feature2: "Full drawings and scope details on every listing",
+      feature3: "Unlimited offers and revisions before deadline",
+      feature4: "Public rating and review profile",
+      monthly: "Monthly",
+      annual: "Annual — save 15%",
+      priceMonthlyNote: "Billed monthly. No lead fees, no commission on top.",
+      priceAnnualNote: "Billed annually at $804. No lead fees, no commission on top.",
+      start: "Start subscription",
+      eyebrow: "Contractor access",
+      headingActive: "Your subscription",
+      headingInactive: "Subscribe to bid on projects",
+      subheadingActive: "Manage your plan and billing details.",
+      subheadingInactive: "One plan, full access. Cancel any time.",
+      overrideBadge: "admin override",
+      overrideMessage: "An administrator has granted your account full marketplace access without a paid subscription.",
+      renews: "Renews",
+      manageBilling: "Manage billing",
+      checkoutNote: "You'll be redirected to Stripe's secure checkout to complete your subscription.",
+      checkoutError: "Could not start checkout. Try again.",
+      portalError: "Could not open billing portal. Try again.",
+    },
+    offer: {
+      deadlineLabel: "Deadline",
+      closed: "Closed",
+      scope: "Scope",
+      drawings: "Drawings",
+      downloadZip: "Download all as .zip",
+      noDrawings: "No drawings were uploaded for this project.",
+      biddingClosedNotice: "Bidding on this project has closed.",
+      yourFinalOffer: "Your final offer:",
+      awardedTo: "Awarded to",
+      anotherContractor: "another contractor",
+      noAwardNotice: "The owner decided not to award this project.",
+      bidAmount: "Your bid amount (USD)",
+      timeline: "Estimated timeline",
+      timelinePlaceholder: "e.g. 3 weeks from start",
+      messageToOwner: "Message to owner",
+      messagePlaceholder: "Outline your approach, materials, and anything the drawings don't cover.",
+      updateOffer: "Update offer",
+      submitOffer: "Submit offer",
+      withdraw: "Withdraw offer",
+      withdrawing: "Withdrawing…",
+      tipsHeading: "Tips for winning bids",
+      tip1: "Reference specific details from the drawings — it signals you reviewed them closely.",
+      tip2: "Owners can see your rating and past reviews next to your bid.",
+      tip3: "You can revise your offer any time before the deadline.",
+      withdrawError: "Could not withdraw offer.",
+      submitError: "Could not submit offer.",
+      notAvailableNotice: "That project isn't available to you right now.",
+    },
+  },
+  owner: {
+    roleLabel: "Owner",
+    dashboard: {
+      statusAll: "All statuses",
+      statusDraft: "Draft",
+      statusOpen: "Open",
+      statusAwaitingReview: "Awaiting review",
+      statusUnderEvaluation: "Under evaluation",
+      statusAwarded: "Awarded",
+      statusNoAward: "No award",
+      statusCanceled: "Canceled",
+      statusExpired: "Expired",
+      eyebrow: "Owner dashboard",
+      heading: "Your projects",
+      newProject: "+ New project",
+      kpiOpen: "Open",
+      kpiAwaitingReview: "Awaiting review",
+      kpiUnderEvaluation: "Under evaluation",
+      kpiAwarded: "Awarded",
+      kpiTotalOffers: "Total offers",
+      emptyStatePrefix: "You haven't posted a project yet.",
+      emptyStateLink: "Post your first one",
+      emptyStateSuffix: "to start receiving offers.",
+      searchPlaceholder: "Search title or address…",
+      allTenderTypes: "All tender types",
+      sealed: "Sealed",
+      ownerVisible: "Owner-visible",
+      noMatch: "No projects match your filters.",
+      nothingHere: "Nothing here.",
+      offersReceived: "offer(s) received",
+      readyToReview: "ready to review",
+      deadline: "Deadline",
+      trade: "Trade",
+      posted: "Posted",
+    },
+    projectNew: {
+      eyebrow: "New project",
+      heading: "Post a project",
+      description: "Add your drawings and set a deadline — contractors can only bid before it closes.",
+      tenderType: "Tender type",
+      ownerVisibleToggle: "Owner-visible",
+      sealedToggle: "Sealed",
+      ownerVisibleHint: "You can see bids as they come in. Locked in once the first bid arrives.",
+      sealedHint: "Bids stay hidden from you until bidding closes. Locked in once the first bid arrives.",
+      title: "Project title",
+      titlePlaceholder: "e.g. Maple St. Duplex — Roof Replacement",
+      address: "Site address",
+      addressPlaceholder: "Street, city, state",
+      trade: "Trade",
+      tradePlaceholder: "e.g. Roofing, Framing, Fencing",
+      scope: "Scope of work",
+      scopePlaceholder: "Describe the work you need done. Contractors will use this alongside your drawings to price their offer.",
+      drawings: "Drawings",
+      drawingsHint: "PDF, DWG, JPG, PNG, or a .zip folder of drawings — up to 50MB total",
+      drawingsAccessNote: "Only approved, subscribed contractors can view these files.",
+      deadline: "Bid deadline",
+      deadlineNote: "No offers are accepted after this time.",
+      postProject: "Post project",
+      posting: "Posting…",
+      saveAsDraft: "Save as draft",
+      draftNote: "A draft is only visible to you. Publish it later from the project page when you're ready for bids.",
+      sidebarHeading: "Before you post",
+      tip1: "Clear drawings get more accurate offers — include dimensions where you can.",
+      tip2: "Give contractors at least 5–7 days to price the job properly.",
+      tip3: "You won't be charged. Posting and reviewing offers is free for property owners.",
+      validationError: "Title, address, and deadline are required.",
+      submitError: "Could not create project.",
+    },
+    projectDetail: {
+      reviewOffers: "Review offers",
+      sealedBadge: "Sealed",
+      ownerVisibleBadge: "Owner-visible",
+      publish: "Publish — start accepting bids",
+      closeEarly: "Close bidding early",
+      startEvaluation: "Start evaluation",
+      markNoAward: "Mark no award",
+      cancelProject: "Cancel project",
+      noDrawings: "No drawings uploaded yet",
+      downloadZip: "Download all as .zip",
+      hideHistory: "Hide revision history",
+      viewHistory: "View revision history",
+      noHistory: "No revision history yet.",
+      current: "(current)",
+      view: "view",
+      addDrawings: "Add drawings",
+      zipHint: "You can also upload a .zip folder of drawings.",
+      scope: "Scope",
+      lowestBid: "Lowest bid",
+      averageBid: "Average bid",
+      highestBid: "Highest bid",
+      sealedBidsReceived: "sealed bid(s) received",
+      sealedExplanation:
+        "This is a sealed tender — bidder identities and amounts stay hidden from you until bidding closes. Close bidding to reveal and evaluate them.",
+      noOffersYet: "No offers yet. Contractors can bid until the deadline above.",
+      contractorCol: "Contractor",
+      ratingCol: "Rating",
+      bidCol: "Bid",
+      timelineCol: "Timeline",
+      revisedSuffix: "revised x",
+      approve: "Approve",
+      closeToAwardHint: "Close bidding to award",
+      rateContractor: "Rate",
+      theContractor: "the contractor",
+      submittedOn: "Submitted",
+      ratingPlaceholder: "How did the work go? Optional, but helps other owners.",
+      submitReview: "Submit review",
+      approveError: "Could not approve this offer.",
+      drawingsError: "Could not add drawings.",
+      reviewError: "Could not submit review.",
+      statusError: "Could not update this project's status.",
+    },
+  },
+  admin: {
+    nav: {
+      requirements: "Document requirements",
+      review: "Review applications",
+      contractors: "All contractors",
+      cms: "Website content",
+    },
+  },
 };
 
 export const ar: Dictionary = {
@@ -255,6 +800,280 @@ export const ar: Dictionary = {
       message: "يرجى تأكيد بريدك الإلكتروني.",
       resend: "إعادة إرسال رسالة التحقق",
       sent: "تم إرسال رسالة التحقق.",
+    },
+  },
+  clarifications: {
+    heading: "الأسئلة والأجوبة",
+    noQuestions: "لا توجد أسئلة بعد.",
+    sealedBidder: "مقاول مغفل الهوية",
+    privateTag: "خاص",
+    writeAnswerPlaceholder: "اكتب إجابة…",
+    answerButton: "إجابة",
+    awaitingAnswer: "بانتظار إجابة من المالك.",
+    shareCheckboxLabel: "مشاركة هذا السؤال والجواب مع المقاولين الآخرين بعد الإجابة عليه",
+    askPlaceholder: "اطرح سؤالاً على المالك حول هذا المشروع…",
+    askButton: "إرسال السؤال",
+    askError: "تعذر إرسال سؤالك.",
+    answerError: "تعذر إرسال إجابتك.",
+  },
+  contractor: {
+    roleLabel: "مقاول",
+    dashboard: {
+      kpiActiveBids: "العروض النشطة",
+      kpiProjectsWon: "المشاريع الفائزة",
+      kpiTotalBids: "إجمالي العروض المقدمة",
+      myBids: "عروضي",
+      browseOpenProjects: "تصفح المشاريع المفتوحة",
+      noBidsYetPrefix: "لم تقدم أي عروض بعد.",
+      banner: {
+        documentsIncompleteTitle: "أكمل التحقق من شركتك",
+        documentsIncompleteBody: "قم برفع مستنداتك ليتمكن أحد المسؤولين من مراجعة حسابك.",
+        documentsIncompleteCta: "متابعة التحقق",
+        submittedTitle: "الطلب قيد المراجعة",
+        submittedBody: "يقوم أحد المسؤولين بمراجعة مستنداتك. سنُعلمك فور اتخاذ القرار.",
+        submittedCta: "عرض الطلب المُقدَّم",
+        changesRequestedTitle: "تم طلب تعديلات",
+        changesRequestedBody: "يجب إعادة رفع مستند واحد أو أكثر قبل الموافقة على حسابك.",
+        changesRequestedCta: "مراجعة وإعادة الرفع",
+        paymentRequiredTitle: "اشترك لفتح إمكانية تقديم العروض",
+        paymentRequiredBody: "تم التحقق من حسابك — اشترك لعرض المخططات وتقديم العروض.",
+        paymentRequiredCta: "عرض الباقات",
+        paymentRestrictedTitle: "مشكلة في الدفع على حسابك",
+        paymentRestrictedBody: "فشلت عملية دفع اشتراكك أو أنها متأخرة. حدّث بيانات الفوترة لمواصلة تقديم العروض.",
+        paymentRestrictedCta: "إدارة الفوترة",
+        suspendedTitle: "الحساب موقوف",
+        suspendedBody: "تم إيقاف حسابك من قبل مسؤول الموقع. تواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.",
+      },
+    },
+    feed: {
+      eyebrow: "مقاول · المشاريع المفتوحة",
+      heading: "مشاريع مفتوحة لتقديم العروض",
+      sortedNewest: "مرتبة حسب الأحدث نشرًا.",
+      sortedClosest: "مرتبة حسب الأقرب إغلاقًا.",
+      subscribeBanner: "تمت الموافقة عليك، لكن المخططات والعروض تبقى مقفلة حتى تشترك.",
+      viewPlans: "عرض الباقات",
+      searchPlaceholder: "ابحث بالعنوان أو الموقع أو نطاق العمل…",
+      allTrades: "كل التخصصات",
+      sortClosest: "الأقرب إغلاقًا",
+      sortNewest: "الأحدث أولاً",
+      noMatch: "لا توجد مشاريع مطابقة لعوامل التصفية.",
+      noOpenProjects: "لا توجد مشاريع مفتوحة حاليًا. تحقق مرة أخرى قريبًا.",
+      deadline: "الموعد النهائي",
+      offersSoFar: "العروض حتى الآن",
+      trade: "التخصص",
+      bidPlaced: "تم تقديم العرض",
+      lockedTitle: "اشترك لعرض المخططات",
+      lockedDescription: "افتح المخططات الكاملة وتفاصيل نطاق العمل والقدرة على تقديم العروض.",
+    },
+    status: {
+      suspendedTitle: "الحساب موقوف",
+      suspendedBody:
+        "تم إيقاف حسابك من قبل مسؤول الموقع. لا يمكنك عرض مشاريع جديدة أو تقديم عروض أثناء الإيقاف. تواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.",
+      approvedTitle: "تمت الموافقة عليك",
+      approvedBody: "توجه إلى لوحة التحكم لتصفح المشاريع المفتوحة.",
+      eyebrow: "مقاول · التحقق من الحساب",
+      heading: "حالة الطلب",
+      changesRequestedTitle: "تم طلب تعديلات — يجب إعادة رفع مستند واحد أو أكثر",
+      underReviewTitle: "الطلب قيد المراجعة",
+      submittedOn: "تاريخ التقديم",
+      pending: "قيد الانتظار",
+      actionNeeded: "يتطلب إجراء",
+      document: "المستند",
+      statusCol: "الحالة",
+      required: "مطلوب",
+      optional: "اختياري",
+      adminNote: "ملاحظة المسؤول:",
+      reupload: "إعادة الرفع",
+      upload: "رفع",
+      footerNote:
+        "سيتم إعلامك بمجرد الموافقة الكاملة على حسابك. يبقى الوصول الكامل إلى المخططات والعروض مقفلاً حتى ذلك الحين.",
+    },
+    verify: {
+      eyebrow: "مقاول · التحقق من الحساب",
+      heading: "تحقق من شركتك",
+      description: "قدّم المستندات أدناه ليتمكن مسؤول الموقع من تفعيل حسابك.",
+      companyName: "اسم الشركة",
+      licenseNumber: "رقم الترخيص",
+      document: "المستند",
+      statusCol: "الحالة",
+      required: "مطلوب",
+      optional: "اختياري",
+      submitting: "جارٍ الإرسال…",
+      submit: "إرسال للمراجعة",
+      uploadError: "تعذر رفع المستند.",
+      submitError: "تعذر الإرسال للمراجعة.",
+    },
+    subscribe: {
+      feature1: "مشاريع مفتوحة غير محدودة في منطقة خدمتك",
+      feature2: "مخططات كاملة وتفاصيل نطاق العمل لكل إعلان",
+      feature3: "عروض ومراجعات غير محدودة قبل الموعد النهائي",
+      feature4: "ملف تقييمات ومراجعات عام",
+      monthly: "شهري",
+      annual: "سنوي — وفّر 15٪",
+      priceMonthlyNote: "تُفوتَر شهريًا. بلا رسوم عمولات إضافية.",
+      priceAnnualNote: "تُفوتَر سنويًا بمبلغ 804 دولارات. بلا رسوم عمولات إضافية.",
+      start: "بدء الاشتراك",
+      eyebrow: "وصول المقاول",
+      headingActive: "اشتراكك",
+      headingInactive: "اشترك لتقديم العروض على المشاريع",
+      subheadingActive: "أدر باقتك وتفاصيل الفوترة.",
+      subheadingInactive: "باقة واحدة، وصول كامل. يمكن الإلغاء في أي وقت.",
+      overrideBadge: "استثناء إداري",
+      overrideMessage: "منحك أحد المسؤولين وصولاً كاملاً للسوق دون اشتراك مدفوع.",
+      renews: "يتجدد في",
+      manageBilling: "إدارة الفوترة",
+      checkoutNote: "سيتم تحويلك إلى صفحة الدفع الآمنة الخاصة بـ Stripe لإتمام اشتراكك.",
+      checkoutError: "تعذر بدء عملية الدفع. حاول مرة أخرى.",
+      portalError: "تعذر فتح بوابة الفوترة. حاول مرة أخرى.",
+    },
+    offer: {
+      deadlineLabel: "الموعد النهائي",
+      closed: "مغلق",
+      scope: "نطاق العمل",
+      drawings: "المخططات",
+      downloadZip: "تنزيل الكل كملف .zip",
+      noDrawings: "لم يتم رفع أي مخططات لهذا المشروع.",
+      biddingClosedNotice: "أُغلق تقديم العروض على هذا المشروع.",
+      yourFinalOffer: "عرضك النهائي:",
+      awardedTo: "تم الترسية على",
+      anotherContractor: "مقاول آخر",
+      noAwardNotice: "قرر المالك عدم ترسية هذا المشروع.",
+      bidAmount: "قيمة عرضك (دولار أمريكي)",
+      timeline: "الجدول الزمني المتوقع",
+      timelinePlaceholder: "مثال: 3 أسابيع من بدء العمل",
+      messageToOwner: "رسالة إلى المالك",
+      messagePlaceholder: "اشرح منهجك ومواد العمل وأي تفاصيل لا تغطيها المخططات.",
+      updateOffer: "تحديث العرض",
+      submitOffer: "تقديم العرض",
+      withdraw: "سحب العرض",
+      withdrawing: "جارٍ السحب…",
+      tipsHeading: "نصائح للفوز بالعروض",
+      tip1: "أشر إلى تفاصيل محددة من المخططات — فهذا يدل على أنك راجعتها بعناية.",
+      tip2: "يمكن للمالكين رؤية تقييمك ومراجعاتك السابقة بجانب عرضك.",
+      tip3: "يمكنك تعديل عرضك في أي وقت قبل الموعد النهائي.",
+      withdrawError: "تعذر سحب العرض.",
+      submitError: "تعذر تقديم العرض.",
+      notAvailableNotice: "هذا المشروع غير متاح لك حاليًا.",
+    },
+  },
+  owner: {
+    roleLabel: "مالك",
+    dashboard: {
+      statusAll: "كل الحالات",
+      statusDraft: "مسودة",
+      statusOpen: "مفتوح",
+      statusAwaitingReview: "بانتظار المراجعة",
+      statusUnderEvaluation: "قيد التقييم",
+      statusAwarded: "تمت الترسية",
+      statusNoAward: "بلا ترسية",
+      statusCanceled: "ملغى",
+      statusExpired: "منتهي الصلاحية",
+      eyebrow: "لوحة تحكم المالك",
+      heading: "مشاريعك",
+      newProject: "+ مشروع جديد",
+      kpiOpen: "مفتوح",
+      kpiAwaitingReview: "بانتظار المراجعة",
+      kpiUnderEvaluation: "قيد التقييم",
+      kpiAwarded: "تمت الترسية",
+      kpiTotalOffers: "إجمالي العروض",
+      emptyStatePrefix: "لم تنشر أي مشروع بعد.",
+      emptyStateLink: "انشر أول مشروع لك",
+      emptyStateSuffix: "لتبدأ باستقبال العروض.",
+      searchPlaceholder: "ابحث بالعنوان أو الموقع…",
+      allTenderTypes: "كل أنواع العطاءات",
+      sealed: "مغلق (سري)",
+      ownerVisible: "مرئي للمالك",
+      noMatch: "لا توجد مشاريع مطابقة لعوامل التصفية.",
+      nothingHere: "لا يوجد شيء هنا.",
+      offersReceived: "عرض/عروض مستلمة",
+      readyToReview: "جاهز للمراجعة",
+      deadline: "الموعد النهائي",
+      trade: "التخصص",
+      posted: "تاريخ النشر",
+    },
+    projectNew: {
+      eyebrow: "مشروع جديد",
+      heading: "انشر مشروعًا",
+      description: "أضف مخططاتك وحدّد موعدًا نهائيًا — لا يمكن للمقاولين تقديم عروض إلا قبل إغلاقه.",
+      tenderType: "نوع العطاء",
+      ownerVisibleToggle: "مرئي للمالك",
+      sealedToggle: "مغلق (سري)",
+      ownerVisibleHint: "يمكنك رؤية العروض فور ورودها. يُثبَّت النوع بمجرد وصول أول عرض.",
+      sealedHint: "تبقى العروض مخفية عنك حتى يُغلق تقديم العروض. يُثبَّت النوع بمجرد وصول أول عرض.",
+      title: "عنوان المشروع",
+      titlePlaceholder: "مثال: دوبلكس شارع مابل — استبدال السقف",
+      address: "عنوان الموقع",
+      addressPlaceholder: "الشارع، المدينة، المنطقة",
+      trade: "التخصص",
+      tradePlaceholder: "مثال: أسقف، هياكل، أسوار",
+      scope: "نطاق العمل",
+      scopePlaceholder: "صف العمل المطلوب. سيستخدم المقاولون هذا الوصف مع مخططاتك لتسعير عروضهم.",
+      drawings: "المخططات",
+      drawingsHint: "PDF أو DWG أو JPG أو PNG أو ملف .zip للمخططات — حتى 50 ميغابايت إجمالاً",
+      drawingsAccessNote: "فقط المقاولون المعتمدون والمشتركون يمكنهم عرض هذه الملفات.",
+      deadline: "الموعد النهائي لتقديم العروض",
+      deadlineNote: "لا تُقبل العروض بعد هذا الوقت.",
+      postProject: "نشر المشروع",
+      posting: "جارٍ النشر…",
+      saveAsDraft: "حفظ كمسودة",
+      draftNote: "المسودة مرئية لك فقط. يمكنك نشرها لاحقًا من صفحة المشروع عندما تكون جاهزًا لاستقبال العروض.",
+      sidebarHeading: "قبل أن تنشر",
+      tip1: "المخططات الواضحة تُنتج عروضًا أدق — أضف الأبعاد قدر الإمكان.",
+      tip2: "امنح المقاولين 5 إلى 7 أيام على الأقل لتسعير العمل بشكل صحيح.",
+      tip3: "لن يتم تحصيل أي رسوم منك. نشر المشاريع ومراجعة العروض مجاني لملاك العقارات.",
+      validationError: "العنوان والموقع والموعد النهائي حقول مطلوبة.",
+      submitError: "تعذر إنشاء المشروع.",
+    },
+    projectDetail: {
+      reviewOffers: "مراجعة العروض",
+      sealedBadge: "مغلق (سري)",
+      ownerVisibleBadge: "مرئي للمالك",
+      publish: "نشر — بدء استقبال العروض",
+      closeEarly: "إغلاق تقديم العروض مبكرًا",
+      startEvaluation: "بدء التقييم",
+      markNoAward: "وضع علامة بلا ترسية",
+      cancelProject: "إلغاء المشروع",
+      noDrawings: "لم يتم رفع أي مخططات بعد",
+      downloadZip: "تنزيل الكل كملف .zip",
+      hideHistory: "إخفاء سجل المراجعات",
+      viewHistory: "عرض سجل المراجعات",
+      noHistory: "لا يوجد سجل مراجعات بعد.",
+      current: "(الحالي)",
+      view: "عرض",
+      addDrawings: "إضافة مخططات",
+      zipHint: "يمكنك أيضًا رفع ملف .zip يحتوي على المخططات.",
+      scope: "نطاق العمل",
+      lowestBid: "أقل عرض",
+      averageBid: "متوسط العروض",
+      highestBid: "أعلى عرض",
+      sealedBidsReceived: "عرض/عروض سرية مستلمة",
+      sealedExplanation:
+        "هذا عطاء مغلق (سري) — تبقى هويات المقاولين وقيم عروضهم مخفية عنك حتى يُغلق تقديم العروض. أغلق تقديم العروض لكشفها وتقييمها.",
+      noOffersYet: "لا توجد عروض بعد. يمكن للمقاولين تقديم عروض حتى الموعد النهائي أعلاه.",
+      contractorCol: "المقاول",
+      ratingCol: "التقييم",
+      bidCol: "العرض",
+      timelineCol: "الجدول الزمني",
+      revisedSuffix: "مُعدَّل ×",
+      approve: "قبول",
+      closeToAwardHint: "أغلق تقديم العروض للترسية",
+      rateContractor: "قيّم",
+      theContractor: "المقاول",
+      submittedOn: "تاريخ التقديم",
+      ratingPlaceholder: "كيف سار العمل؟ اختياري، لكنه يساعد الملاك الآخرين.",
+      submitReview: "إرسال التقييم",
+      approveError: "تعذر قبول هذا العرض.",
+      drawingsError: "تعذر إضافة المخططات.",
+      reviewError: "تعذر إرسال التقييم.",
+      statusError: "تعذر تحديث حالة هذا المشروع.",
+    },
+  },
+  admin: {
+    nav: {
+      requirements: "متطلبات المستندات",
+      review: "مراجعة الطلبات",
+      contractors: "جميع المقاولين",
+      cms: "محتوى الموقع",
     },
   },
 };

@@ -5,8 +5,10 @@ import { apiFetch } from "@/api/client";
 import type { ContractorProfile, Project } from "@/api/types";
 import { formatDeadline, timeRemaining } from "@/lib/format";
 import { QueryError } from "@/components/QueryError";
+import { useI18n } from "@/i18n/I18nContext";
 
 export function ContractorFeedPage() {
+  const { t } = useI18n();
   const location = useLocation() as { state?: { notice?: string } };
   const [search, setSearch] = useState("");
   const [trade, setTrade] = useState("");
@@ -48,9 +50,9 @@ export function ContractorFeedPage() {
   return (
     <main className="max-w-5xl mx-auto px-5 py-8">
       <div className="mb-6">
-        <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">Contractor · Open projects</span>
-        <h1 className="font-display text-2xl font-semibold text-navy mb-1">Projects open for bidding</h1>
-        <p className="text-[13.5px] text-steel">{sort === "newest" ? "Sorted by most recently posted." : "Sorted by closing soonest."}</p>
+        <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">{t("contractor.feed.eyebrow")}</span>
+        <h1 className="font-display text-2xl font-semibold text-navy mb-1">{t("contractor.feed.heading")}</h1>
+        <p className="text-[13.5px] text-steel">{sort === "newest" ? t("contractor.feed.sortedNewest") : t("contractor.feed.sortedClosest")}</p>
       </div>
 
       {location.state?.notice && (
@@ -59,9 +61,9 @@ export function ContractorFeedPage() {
 
       {!isSubscribed && (
         <div className="bg-blue-tint border border-blue rounded px-5 py-4 mb-6 flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm text-navy">You're approved, but drawings and offers stay locked until you subscribe.</p>
+          <p className="text-sm text-navy">{t("contractor.feed.subscribeBanner")}</p>
           <Link to="/contractor/subscribe" className="bg-amber hover:bg-amber-dark text-white text-xs font-semibold rounded px-4 py-2 whitespace-nowrap">
-            View plans
+            {t("contractor.feed.viewPlans")}
           </Link>
         </div>
       )}
@@ -70,7 +72,7 @@ export function ContractorFeedPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search title, address, or scope…"
+          placeholder={t("contractor.feed.searchPlaceholder")}
           className="border border-border rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
         />
         <select
@@ -78,10 +80,10 @@ export function ContractorFeedPage() {
           onChange={(e) => setTrade(e.target.value)}
           className="border border-border rounded px-3 py-2 text-sm font-mono"
         >
-          <option value="">All trades</option>
-          {trades?.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          <option value="">{t("contractor.feed.allTrades")}</option>
+          {trades?.map((tr) => (
+            <option key={tr} value={tr}>
+              {tr}
             </option>
           ))}
         </select>
@@ -90,8 +92,8 @@ export function ContractorFeedPage() {
           onChange={(e) => setSort(e.target.value as "deadline" | "newest")}
           className="border border-border rounded px-3 py-2 text-sm font-mono"
         >
-          <option value="deadline">Closing soonest</option>
-          <option value="newest">Newest first</option>
+          <option value="deadline">{t("contractor.feed.sortClosest")}</option>
+          <option value="newest">{t("contractor.feed.sortNewest")}</option>
         </select>
       </div>
 
@@ -99,7 +101,7 @@ export function ContractorFeedPage() {
 
       {!isError && !projects?.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
-          {filtersActive ? "No projects match your filters." : "No open projects right now. Check back soon."}
+          {filtersActive ? t("contractor.feed.noMatch") : t("contractor.feed.noOpenProjects")}
         </div>
       )}
 
@@ -114,22 +116,22 @@ export function ContractorFeedPage() {
                 </div>
                 {p.my_offer_status && (
                   <span className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-tint text-green whitespace-nowrap">
-                    {p.my_offer_status === "submitted" ? "Bid placed" : p.my_offer_status}
+                    {p.my_offer_status === "submitted" ? t("contractor.feed.bidPlaced") : p.my_offer_status}
                   </span>
                 )}
               </div>
               <p className="font-mono text-xs text-blue">{timeRemaining(p.bid_deadline)}</p>
               <div className="tblock-strip mt-4">
                 <div className="tblock-field">
-                  <span className="k">Deadline</span>
+                  <span className="k">{t("contractor.feed.deadline")}</span>
                   <span className="v">{formatDeadline(p.bid_deadline)}</span>
                 </div>
                 <div className="tblock-field">
-                  <span className="k">Offers so far</span>
+                  <span className="k">{t("contractor.feed.offersSoFar")}</span>
                   <span className="v">{p.offer_count}</span>
                 </div>
                 <div className="tblock-field">
-                  <span className="k">Trade</span>
+                  <span className="k">{t("contractor.feed.trade")}</span>
                   <span className="v">{p.trade || "—"}</span>
                 </div>
               </div>
@@ -137,10 +139,8 @@ export function ContractorFeedPage() {
               {!isSubscribed && (
                 <div className="absolute inset-0 bg-navy/90 flex flex-col items-center justify-center text-center gap-2.5 px-4">
                   <div className="text-xl">🔒</div>
-                  <strong className="font-display text-white text-sm">Subscribe to view drawings</strong>
-                  <p className="text-[11.5px] text-white/70 max-w-[220px]">
-                    Unlock full drawings, scope details, and the ability to submit offers.
-                  </p>
+                  <strong className="font-display text-white text-sm">{t("contractor.feed.lockedTitle")}</strong>
+                  <p className="text-[11.5px] text-white/70 max-w-[220px]">{t("contractor.feed.lockedDescription")}</p>
                 </div>
               )}
             </div>
