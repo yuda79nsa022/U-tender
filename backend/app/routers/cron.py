@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models.enums import ProjectStatus
+from app.models.enums import NotificationType, ProjectStatus
 from app.models.offer import Offer
 from app.models.project import Project
 from app.models.user import User
 from app.services.email import notify_owner_deadline_approaching
+from app.services.notify import notify
 
 router = APIRouter(tags=["cron"])
 settings = get_settings()
@@ -45,6 +46,7 @@ def deadline_reminders(authorization: str | None = Header(default=None), db: Ses
         owner = db.get(User, p.owner_id)
         if owner:
             notify_owner_deadline_approaching(owner.email, p.title, p.id, offer_count)
+            notify(db, owner, NotificationType.deadline_approaching, link=f"/owner/projects/{p.id}", project_title=p.title)
         p.deadline_reminder_sent = True
         sent += 1
     db.commit()

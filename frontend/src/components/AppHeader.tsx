@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref: string }) {
   const { logout } = useAuth();
@@ -21,6 +22,7 @@ export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref
         </Link>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <LanguageSwitcher />
           <span className="font-mono text-[11px] uppercase tracking-wide text-steel border border-border rounded-full px-2.5 py-1">
             {roleLabel}

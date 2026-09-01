@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_contractor_profile, require_approved_contractor, require_marketplace_active_contractor
-from app.models.enums import OfferStatus, ProjectStatus
+from app.models.enums import NotificationType, OfferStatus, ProjectStatus, TenderType
 from app.models.offer import Offer, OfferRevision
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.offer import OfferCreate, OfferOut, OfferRevisionOut
 from app.services.email import notify_owner_new_offer
+from app.services.notify import notify
 
 router = APIRouter(prefix="/projects/{project_id}/offers", tags=["offers"])
 
@@ -111,9 +112,18 @@ def submit_offer(
     db.commit()
     db.refresh(offer)
 
+    sealed = project.tender_type == TenderType.sealed and project.status == ProjectStatus.open
     owner = db.get(User, project.owner_id)
     if owner:
-        notify_owner_new_offer(owner.email, project.title, project_id, profile.company_name, float(payload.amount))
+        notify_owner_new_offer(owner.email, project.title, project_id, profile.company_name, float(payload.amount), sealed=sealed)
+        notify(
+            db,
+            owner,
+            NotificationType.bid_submitted,
+            link=f"/owner/projects/{project_id}",
+            project_title=project.title,
+            contractor_name="A contractor" if sealed else profile.company_name,
+        )
 
     return offer
 

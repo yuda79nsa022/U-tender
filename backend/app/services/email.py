@@ -22,12 +22,23 @@ def _send(to: str, subject: str, html: str) -> None:
         logger.exception('failed to send "%s" to %s', subject, to)
 
 
-def notify_owner_new_offer(owner_email: str, project_title: str, project_id: str, contractor_name: str, amount: float) -> None:
+def notify_owner_new_offer(
+    owner_email: str, project_title: str, project_id: str, contractor_name: str, amount: float, sealed: bool = False
+) -> None:
+    # Sealed-and-open (spec §19-21, D-001): the API already redacts bidder
+    # identity and amount from the owner until close (see owner.py's
+    # list_offers) — the email notification can't be the channel that
+    # leaks the same information out the side.
+    body = (
+        f"<p>You received a new sealed offer on <strong>{project_title}</strong>. "
+        f"Bidder identity and amount stay hidden until you close bidding.</p>"
+        if sealed
+        else f"<p><strong>{contractor_name}</strong> submitted an offer of ${amount:,.2f} on <strong>{project_title}</strong>.</p>"
+    )
     _send(
         owner_email,
         f"New offer on {project_title}",
-        f"<p><strong>{contractor_name}</strong> submitted an offer of ${amount:,.2f} on <strong>{project_title}</strong>.</p>"
-        f'<p><a href="{settings.app_url}/owner/projects/{project_id}">Review offers</a></p>',
+        f"{body}" f'<p><a href="{settings.app_url}/owner/projects/{project_id}">Review offers</a></p>',
     )
 
 

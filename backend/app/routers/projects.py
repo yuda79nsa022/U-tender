@@ -6,7 +6,7 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
-from app.models.enums import OfferStatus, ProjectStatus, TenderType, UserRole
+from app.models.enums import NotificationType, OfferStatus, ProjectStatus, TenderType, UserRole
 from app.models.offer import Offer
 from app.models.project import Project, ProjectDrawing
 from app.models.project_amendment import ProjectAmendment
@@ -16,6 +16,7 @@ from app.schemas.award import AwardRecordOut
 from app.schemas.project import DrawingOut, ProjectCreate, ProjectDetailOut
 from app.services.drawings import upload_drawings_for_project
 from app.services.email import notify_contractor_tender_amended
+from app.services.notify import notify
 from app.services.storage import drawing_url_expiry_seconds, get_storage
 from app.services.tender_lifecycle import sync_expired_projects
 
@@ -188,6 +189,14 @@ def amend_project(
         contractor_user = db.get(User, contractor_id)
         if contractor_user:
             notify_contractor_tender_amended(contractor_user.email, project.title, project_id, summary)
+            notify(
+                db,
+                contractor_user,
+                NotificationType.tender_amendment,
+                link=f"/contractor/projects/{project_id}/offer",
+                project_title=project.title,
+                summary=summary,
+            )
 
     return _serialize_detail(project, db)
 

@@ -10,7 +10,7 @@ from app.models.audit_log import AuditLog
 from app.models.cms_content import CmsContent
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement
-from app.models.enums import DocumentStatus, Language, VerificationStatus
+from app.models.enums import DocumentStatus, Language, NotificationType, VerificationStatus
 from app.models.payment_override import PaymentOverride
 from app.models.review import Review
 from app.models.user import User
@@ -24,6 +24,7 @@ from app.schemas.document import (
     ReviewDocumentDecision,
 )
 from app.services.audit import log_action
+from app.services.notify import notify
 from app.services.storage import get_storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -175,6 +176,14 @@ def review_document(payload: ReviewDocumentDecision, admin: User = Depends(requi
             cp.verification_status = VerificationStatus.changes_requested
             db.commit()
 
+    requirement = db.get(DocumentRequirement, payload.requirement_id)
+    contractor_user = db.get(User, payload.contractor_id)
+    if contractor_user and requirement and payload.decision in (DocumentStatus.approved, DocumentStatus.rejected):
+        notification_type = (
+            NotificationType.document_approved if payload.decision == DocumentStatus.approved else NotificationType.document_rejected
+        )
+        notify(db, contractor_user, notification_type, link="/contractor/status", requirement_name=requirement.name)
+
     db.refresh(doc)
     return doc
 
@@ -235,6 +244,9 @@ def approve_contractor(contractor_id: str, admin: User = Depends(require_admin),
         previous_value=previous,
         new_value=VerificationStatus.approved.value,
     )
+    contractor_user = db.get(User, contractor_id)
+    if contractor_user:
+        notify(db, contractor_user, NotificationType.verification_activated, link="/contractor/dashboard")
     return cp
 
 
@@ -376,6 +388,14 @@ def set_suspended(
         previous_value=str(previous),
         new_value=str(payload.suspended),
     )
+    contractor_user = db.get(User, contractor_id)
+    if contractor_user:
+        notify(
+            db,
+            contractor_user,
+            NotificationType.contractor_suspended if payload.suspended else NotificationType.contractor_reactivated,
+            link="/contractor/dashboard",
+        )
     return cp
 
 
@@ -420,6 +440,8 @@ def grant_payment_override(
     )
 
     user = db.get(User, contractor_id)
+    if user:
+        notify(db, user, NotificationType.payment_override_granted, link="/contractor/dashboard")
     return ContractorProfileOut(**_profile_fields(cp), email=user.email if user else None)
 
 
@@ -464,6 +486,8 @@ def revoke_payment_override(
     )
 
     user = db.get(User, contractor_id)
+    if user:
+        notify(db, user, NotificationType.payment_override_revoked, link="/contractor/dashboard")
     return ContractorProfileOut(**_profile_fields(cp), email=user.email if user else None)
 
 

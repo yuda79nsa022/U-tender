@@ -1,0 +1,114 @@
+from datetime import datetime, timedelta
+
+from sqlalchemy.orm import Session
+
+from app.models.enums import Language, NotificationType
+from app.models.notification import Notification
+from app.models.user import User
+
+# Rendered server-side, once, in the recipient's language AT THE TIME OF
+# CREATION (spec §2.10) — never re-translated on read, so a later language
+# change never rewrites notification history. Each entry is
+# (title_template, body_template); both are .format()-ed with whatever
+# kwargs the call site passes.
+_TEMPLATES: dict[NotificationType, dict[Language, tuple[str, str]]] = {
+    NotificationType.bid_submitted: {
+        Language.en: ("New offer on {project_title}", "{contractor_name} submitted an offer on {project_title}."),
+        Language.ar: ("عرض جديد على {project_title}", "قدم {contractor_name} عرضًا على {project_title}."),
+    },
+    NotificationType.award_won: {
+        Language.en: ("You won {project_title}", "Your offer on {project_title} was accepted."),
+        Language.ar: ("لقد فزت بـ {project_title}", "تم قبول عرضك على {project_title}."),
+    },
+    NotificationType.award_lost: {
+        Language.en: ("Update on {project_title}", "The owner of {project_title} went with another offer."),
+        Language.ar: ("تحديث بخصوص {project_title}", "اختار مالك {project_title} عرضًا آخر."),
+    },
+    NotificationType.clarification_asked: {
+        Language.en: ("New question on {project_title}", "A contractor asked a question about {project_title}."),
+        Language.ar: ("سؤال جديد على {project_title}", "طرح أحد المقاولين سؤالاً حول {project_title}."),
+    },
+    NotificationType.clarification_answered: {
+        Language.en: ("Your question was answered", "The owner of {project_title} answered your question."),
+        Language.ar: ("تمت الإجابة على سؤالك", "أجاب مالك {project_title} على سؤالك."),
+    },
+    NotificationType.tender_amendment: {
+        Language.en: ("{project_title} was updated", "{summary}"),
+        Language.ar: ("تم تحديث {project_title}", "{summary}"),
+    },
+    NotificationType.document_approved: {
+        Language.en: ("Document approved", "Your {requirement_name} document was approved."),
+        Language.ar: ("تمت الموافقة على المستند", "تمت الموافقة على مستند {requirement_name} الخاص بك."),
+    },
+    NotificationType.document_rejected: {
+        Language.en: ("Document needs attention", "Your {requirement_name} document was rejected — please re-upload."),
+        Language.ar: ("المستند يحتاج إلى مراجعة", "تم رفض مستند {requirement_name} الخاص بك — يرجى إعادة الرفع."),
+    },
+    NotificationType.verification_activated: {
+        Language.en: ("You're verified", "Your contractor account has been approved."),
+        Language.ar: ("تم التحقق من حسابك", "تمت الموافقة على حساب المقاول الخاص بك."),
+    },
+    NotificationType.payment_override_granted: {
+        Language.en: ("Marketplace access activated", "An administrator activated full marketplace access on your account."),
+        Language.ar: ("تم تفعيل الوصول إلى السوق", "قام أحد المسؤولين بتفعيل الوصول الكامل إلى السوق لحسابك."),
+    },
+    NotificationType.payment_override_revoked: {
+        Language.en: ("Marketplace access changed", "Your admin-granted marketplace access was revoked."),
+        Language.ar: ("تغيّر الوصول إلى السوق", "تم إلغاء الوصول إلى السوق الذي منحه المسؤول لحسابك."),
+    },
+    NotificationType.contractor_suspended: {
+        Language.en: ("Account suspended", "Your account has been suspended by a site admin."),
+        Language.ar: ("تم تعليق الحساب", "تم تعليق حسابك من قبل مسؤول الموقع."),
+    },
+    NotificationType.contractor_reactivated: {
+        Language.en: ("Account reactivated", "Your account has been reactivated."),
+        Language.ar: ("تم إعادة تفعيل الحساب", "تمت إعادة تفعيل حسابك."),
+    },
+    NotificationType.tender_no_award: {
+        Language.en: ("No award on {project_title}", "The owner decided not to award {project_title}."),
+        Language.ar: ("لم يتم الترسية على {project_title}", "قرر المالك عدم الترسية على {project_title}."),
+    },
+    NotificationType.tender_cancelled: {
+        Language.en: ("{project_title} was canceled", "The owner canceled this project."),
+        Language.ar: ("تم إلغاء {project_title}", "قام المالك بإلغاء هذا المشروع."),
+    },
+    NotificationType.deadline_approaching: {
+        Language.en: ("Bidding closes soon — {project_title}", "{project_title} stops accepting offers within 24 hours."),
+        Language.ar: ("يغلق التقديم قريبًا — {project_title}", "سيتوقف {project_title} عن قبول العروض خلال 24 ساعة."),
+    },
+}
+
+
+# Dedup policy (spec §2.10 "deduplicated"): if the recipient already has an
+# UNREAD notification of the same type pointing at the same link, a new
+# trigger of the same underlying event (e.g. a contractor revising their
+# bid five times before the owner ever opens their inbox) doesn't pile up
+# a fresh row each time — the existing one already says "you have
+# something to check here." A new one is created only once that one has
+# been read, or there was none to begin with.
+def notify(db: Session, user: User, notification_type: NotificationType, link: str | None = None, **kwargs) -> Notification | None:
+    template = _TEMPLATES.get(notification_type)
+    if not template:
+        return None
+    title_fmt, body_fmt = template.get(user.language) or template[Language.en]
+    title = title_fmt.format(**kwargs)
+    body = body_fmt.format(**kwargs)
+
+    existing = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == user.id,
+            Notification.type == notification_type,
+            Notification.link == link,
+            Notification.is_read.is_(False),
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    row = Notification(user_id=user.id, type=notification_type, title=title, body=body, link=link)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row

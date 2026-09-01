@@ -7,7 +7,7 @@ from app.db import get_db
 from app.deps import require_owner
 from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
-from app.models.enums import OfferStatus, ProjectStatus, TenderType
+from app.models.enums import NotificationType, OfferStatus, ProjectStatus, TenderType
 from app.models.offer import Offer, OfferRevision
 from app.models.project import Project
 from app.models.review import Review
@@ -17,6 +17,7 @@ from app.schemas.project import ProjectOut
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.audit import log_action
 from app.services.email import notify_contractor_offer_decision
+from app.services.notify import notify
 from app.services.tender_lifecycle import sync_expired_projects
 
 router = APIRouter(prefix="/owner", tags=["owner"])
@@ -194,10 +195,12 @@ def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_o
     winner_user = db.get(User, winning_offer.contractor_id)
     if winner_user:
         notify_contractor_offer_decision(winner_user.email, project.title, approved=True)
+        notify(db, winner_user, NotificationType.award_won, link=f"/contractor/projects/{project_id}/offer", project_title=project.title)
     for o in other_offers:
         loser_user = db.get(User, o.contractor_id)
         if loser_user:
             notify_contractor_offer_decision(loser_user.email, project.title, approved=False)
+            notify(db, loser_user, NotificationType.award_lost, link=f"/contractor/projects/{project_id}/offer", project_title=project.title)
 
     db.refresh(project)
     offer_count = db.query(Offer).filter(Offer.project_id == project_id).count()
@@ -251,6 +254,19 @@ def start_evaluation(project_id: str, user: User = Depends(require_owner), db: S
     return _project_response(project, db)
 
 
+def _notify_bidders(db: Session, project: Project, notification_type: NotificationType) -> None:
+    bidder_ids = (
+        db.query(Offer.contractor_id)
+        .filter(Offer.project_id == project.id, Offer.status != OfferStatus.withdrawn)
+        .distinct()
+        .all()
+    )
+    for (contractor_id,) in bidder_ids:
+        bidder = db.get(User, contractor_id)
+        if bidder:
+            notify(db, bidder, notification_type, link=f"/contractor/projects/{project.id}/offer", project_title=project.title)
+
+
 @router.post("/projects/{project_id}/no-award", response_model=ProjectOut)
 def mark_no_award(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
     sync_expired_projects(db)
@@ -261,6 +277,7 @@ def mark_no_award(project_id: str, user: User = Depends(require_owner), db: Sess
     project.status = ProjectStatus.no_award
     db.commit()
     log_action(db, actor_id=user.id, action="project.no_award", target_type="project", target_id=project_id, previous_value=previous, new_value="no_award")
+    _notify_bidders(db, project, NotificationType.tender_no_award)
     db.refresh(project)
     return _project_response(project, db)
 
@@ -275,6 +292,7 @@ def cancel_project(project_id: str, user: User = Depends(require_owner), db: Ses
     project.status = ProjectStatus.canceled
     db.commit()
     log_action(db, actor_id=user.id, action="project.cancel", target_type="project", target_id=project_id, previous_value=previous, new_value="canceled")
+    _notify_bidders(db, project, NotificationType.tender_cancelled)
     db.refresh(project)
     return _project_response(project, db)
 

@@ -7,12 +7,13 @@ from app.db import get_db
 from app.deps import get_current_user, require_owner
 from app.models.clarification import Clarification
 from app.models.contractor import ContractorProfile
-from app.models.enums import ProjectStatus, UserRole
+from app.models.enums import NotificationType, ProjectStatus, UserRole
 from app.models.project import Project
 from app.models.user import User
 from app.routers.projects import _can_view_project
 from app.schemas.clarification import ClarificationAnswer, ClarificationCreate, ClarificationOut
 from app.services.email import notify_clarification_answered, notify_owner_new_clarification
+from app.services.notify import notify
 
 router = APIRouter(prefix="/projects/{project_id}/clarifications", tags=["clarifications"])
 
@@ -85,6 +86,7 @@ def ask_clarification(
     owner = db.get(User, project.owner_id)
     if owner:
         notify_owner_new_clarification(owner.email, project.title, project_id)
+        notify(db, owner, NotificationType.clarification_asked, link=f"/owner/projects/{project_id}", project_title=project.title)
 
     profile = db.get(ContractorProfile, user.id)
     return _serialize(clarification, profile.company_name if profile else None)
@@ -120,6 +122,13 @@ def answer_clarification(
     contractor_user = db.get(User, clarification.contractor_id)
     if contractor_user:
         notify_clarification_answered(contractor_user.email, project.title, project_id)
+        notify(
+            db,
+            contractor_user,
+            NotificationType.clarification_answered,
+            link=f"/contractor/projects/{project_id}/offer",
+            project_title=project.title,
+        )
 
     profile = db.get(ContractorProfile, clarification.contractor_id)
     return _serialize(clarification, profile.company_name if profile else None)
