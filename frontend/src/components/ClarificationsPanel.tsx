@@ -67,9 +67,12 @@ export function ClarificationsPanel({
           {clarifications.map((c) => (
             <li key={c.id} className="border-b border-border pb-3 last:border-0">
               <div className="flex items-center gap-2 mb-1">
-                {role === "owner" && (
-                  <span className="font-mono text-[10px] text-steel-light">{c.contractor_company_name}</span>
-                )}
+                {role === "owner" &&
+                  (c.contractor_company_name ? (
+                    <span className="font-mono text-[10px] text-steel-light">{c.contractor_company_name}</span>
+                  ) : (
+                    <span className="font-mono text-[10px] text-steel-light italic">sealed bidder</span>
+                  ))}
                 {!c.shared_with_all && <span className="font-mono text-[9px] uppercase text-amber-dark">private</span>}
               </div>
               <p className="text-[13px] text-navy">{c.question}</p>

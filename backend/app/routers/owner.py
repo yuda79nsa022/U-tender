@@ -7,7 +7,7 @@ from app.db import get_db
 from app.deps import require_owner
 from app.models.award_record import AwardRecord
 from app.models.contractor import ContractorProfile
-from app.models.enums import NotificationType, OfferStatus, ProjectStatus, TenderType
+from app.models.enums import NotificationType, OfferStatus, ProjectStatus
 from app.models.offer import Offer, OfferRevision
 from app.models.project import Project
 from app.models.review import Review
@@ -18,7 +18,7 @@ from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.audit import log_action
 from app.services.email import notify_contractor_offer_decision
 from app.services.notify import notify
-from app.services.tender_lifecycle import sync_expired_projects
+from app.services.tender_lifecycle import is_sealed_and_open, sync_expired_projects
 
 router = APIRouter(prefix="/owner", tags=["owner"])
 
@@ -43,14 +43,10 @@ def dashboard(user: User = Depends(require_owner), db: Session = Depends(get_db)
     return out
 
 
-def _is_sealed_and_open(project: Project) -> bool:
-    return project.tender_type == TenderType.sealed and project.status == ProjectStatus.open
-
-
 @router.get("/projects/{project_id}/offers", response_model=list[OfferOut])
 def list_offers(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
     project = _get_owned_project(project_id, user, db)
-    sealed = _is_sealed_and_open(project)
+    sealed = is_sealed_and_open(project)
 
     query = (
         db.query(Offer, ContractorProfile)
@@ -108,7 +104,7 @@ def list_offers(project_id: str, user: User = Depends(require_owner), db: Sessio
 @router.get("/projects/{project_id}/offers/{offer_id}/history", response_model=list[OfferRevisionOut])
 def offer_history(project_id: str, offer_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
     project = _get_owned_project(project_id, user, db)
-    if _is_sealed_and_open(project):
+    if is_sealed_and_open(project):
         # Same rule as the list itself — a per-bid revision trail is just
         # as identifying as the current amount, so it stays hidden until
         # the seal lifts.
@@ -317,10 +313,20 @@ def submit_review(payload: ReviewCreate, user: User = Depends(require_owner), db
     if existing:
         raise HTTPException(status_code=400, detail="A review already exists for this project.")
 
+    # The contractor being reviewed is derived from the project's own
+    # AwardRecord, never trusted from the request body — payload.contractor_id
+    # is otherwise a free-text client-supplied ID with only a "some real
+    # contractor exists" FK constraint behind it, letting an owner rate ANY
+    # contractor's public profile under cover of an unrelated awarded
+    # project (a real IDOR, found and fixed in PASS 17's security audit).
+    award = db.query(AwardRecord).filter(AwardRecord.project_id == payload.project_id).first()
+    if not award:
+        raise HTTPException(status_code=400, detail="This project has no award record to review against.")
+
     review = Review(
         project_id=payload.project_id,
         owner_id=user.id,
-        contractor_id=payload.contractor_id,
+        contractor_id=award.contractor_id,
         rating=payload.rating,
         comment=payload.comment or None,
     )
@@ -329,11 +335,13 @@ def submit_review(payload: ReviewCreate, user: User = Depends(require_owner), db
 
     # Recompute the contractor's public average rather than trusting an
     # incrementally-maintained counter, so it can never drift out of sync.
-    all_reviews = db.query(Review.rating).filter(Review.contractor_id == payload.contractor_id).all()
+    # Uses the same server-derived award.contractor_id as above — never
+    # payload.contractor_id.
+    all_reviews = db.query(Review.rating).filter(Review.contractor_id == award.contractor_id).all()
     review_count = len(all_reviews)
     avg_rating = round(sum(r[0] for r in all_reviews) / review_count, 1) if review_count else 0
 
-    profile = db.get(ContractorProfile, payload.contractor_id)
+    profile = db.get(ContractorProfile, award.contractor_id)
     if profile:
         profile.avg_rating = avg_rating
         profile.review_count = review_count

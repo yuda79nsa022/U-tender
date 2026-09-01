@@ -14,29 +14,37 @@ from app.routers.projects import _can_view_project
 from app.schemas.clarification import ClarificationAnswer, ClarificationCreate, ClarificationOut
 from app.services.email import notify_clarification_answered, notify_owner_new_clarification
 from app.services.notify import notify
+from app.services.tender_lifecycle import is_sealed_and_open
 
 router = APIRouter(prefix="/projects/{project_id}/clarifications", tags=["clarifications"])
 
 
-def _serialize(c: Clarification, company_name: str | None) -> ClarificationOut:
+def _serialize(c: Clarification, company_name: str | None, redact: bool = False) -> ClarificationOut:
     return ClarificationOut(
         id=c.id,
         project_id=c.project_id,
-        contractor_id=c.contractor_id,
+        contractor_id=None if redact else c.contractor_id,
         question=c.question,
         answer=c.answer,
         shared_with_all=c.shared_with_all,
         created_at=c.created_at,
         answered_at=c.answered_at,
-        contractor_company_name=company_name,
+        contractor_company_name=None if redact else company_name,
     )
 
 
-# Visibility (spec §2.7, D-008): the owner and admin see everything. A
-# contractor always sees their own questions (answer pending or not,
-# shared or private) — but another contractor's question is visible only
-# once it's both answered AND marked shared_with_all, so an unanswered or
-# deliberately private Q&A never leaks to the rest of the field.
+# Visibility (spec §2.7, D-008): admin sees everything. A contractor always
+# sees their own questions (answer pending or not, shared or private) —
+# but another contractor's question is visible only once it's both
+# answered AND marked shared_with_all, so an unanswered or deliberately
+# private Q&A never leaks to the rest of the field. The owner sees every
+# question too, EXCEPT that while the tender is sealed and still open
+# (spec §19-21, D-001: bidder identity hidden from the owner until close),
+# a question from anyone other than the owner's own reading of it has its
+# contractor_id/company_name redacted the same way owner.py's offers list
+# already does — otherwise the sealed-bid rule would be enforced on bids
+# but bypassable by simply asking a question instead (found in PASS 17's
+# security audit).
 @router.get("", response_model=list[ClarificationOut])
 def list_clarifications(project_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     project = db.get(Project, project_id)
@@ -51,10 +59,17 @@ def list_clarifications(project_id: str, user: User = Depends(get_current_user),
         .all()
     )
 
-    is_owner_or_admin = user.role == UserRole.admin or project.owner_id == user.id
+    is_admin = user.role == UserRole.admin
+    is_owner = project.owner_id == user.id
+    sealed = is_sealed_and_open(project)
+
     out = []
     for c, cp in rows:
-        if is_owner_or_admin or c.contractor_id == user.id or (c.shared_with_all and c.answer is not None):
+        if is_admin or c.contractor_id == user.id:
+            out.append(_serialize(c, cp.company_name))
+        elif is_owner:
+            out.append(_serialize(c, cp.company_name, redact=sealed))
+        elif c.shared_with_all and c.answer is not None:
             out.append(_serialize(c, cp.company_name))
     return out
 
@@ -131,4 +146,4 @@ def answer_clarification(
         )
 
     profile = db.get(ContractorProfile, clarification.contractor_id)
-    return _serialize(clarification, profile.company_name if profile else None)
+    return _serialize(clarification, profile.company_name if profile else None, redact=is_sealed_and_open(project))

@@ -123,7 +123,8 @@ export interface ContractorDocument {
 export interface Clarification {
   id: string;
   project_id: string;
-  contractor_id: string;
+  // null when redacted for the owner on a still-sealed-and-open tender.
+  contractor_id: string | null;
   question: string;
   answer: string | null;
   shared_with_all: boolean;
