@@ -20,6 +20,11 @@ class ContractorProfileOut(BaseModel):
     review_count: int
     subscription_status: SubscriptionStatus | None
     subscription_current_period_end: datetime | None
+    payment_override_active: bool
+    # Derived, never stored — spec §2.13's human-facing lifecycle status,
+    # one of: documents_incomplete, submitted_for_review, changes_requested,
+    # payment_required, payment_restricted, verified_active, suspended.
+    marketplace_status: str
     created_at: datetime
     email: str | None = None
 

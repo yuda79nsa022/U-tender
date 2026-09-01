@@ -168,5 +168,7 @@ def _profile_fields(cp: ContractorProfile) -> dict:
         review_count=cp.review_count,
         subscription_status=cp.subscription_status,
         subscription_current_period_end=cp.subscription_current_period_end,
+        payment_override_active=cp.payment_override_active,
+        marketplace_status=cp.marketplace_status,
         created_at=cp.created_at,
     )

@@ -16,6 +16,15 @@ from app.services.storage import drawing_url_expiry_seconds, get_storage
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
+# Full project detail includes signed drawing URLs — the P0 payment gate
+# (spec checklist "docs approved but payment absent") applies here, not
+# just verification. A verification-approved-but-unpaid contractor sees a
+# 404 on this endpoint exactly like a project they're not eligible for at
+# all — the response never distinguishes "doesn't exist" from "you don't
+# have access yet", so it can't be used to enumerate projects. The
+# lightweight /contractor/feed listing (title, deadline, offer count — no
+# drawings) stays available on verification alone; that split is what lets
+# an unpaid contractor browse before paying instead of a hard app lockout.
 def _can_view_project(user: User, project: Project, db: Session) -> bool:
     if user.role == UserRole.admin or project.owner_id == user.id:
         return True
@@ -24,7 +33,7 @@ def _can_view_project(user: User, project: Project, db: Session) -> bool:
     if project.status.value not in ("open", "closed", "awarded"):
         return False
     profile = db.get(ContractorProfile, user.id)
-    return bool(profile and profile.verification_status.value == "approved" and not profile.is_suspended)
+    return bool(profile and profile.is_verified_active)
 
 
 @router.post("", response_model=ProjectDetailOut, status_code=201)

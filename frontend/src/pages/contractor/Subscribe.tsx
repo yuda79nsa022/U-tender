@@ -97,7 +97,13 @@ export function ContractorSubscribePage() {
 
   if (!profile) return <PageLoading />;
 
-  const isActive = profile.subscription_status === "active" || profile.subscription_status === "trialing";
+  const hasRealSubscription = profile.subscription_status === "active" || profile.subscription_status === "trialing";
+  // marketplace_status already folds in an admin payment override, so a
+  // contractor can be fully active (verified_active) with no Stripe
+  // subscription at all — that state gets its own message rather than
+  // being lumped in with "Subscribe to bid".
+  const isActive = profile.marketplace_status === "verified_active";
+  const overrideOnly = isActive && !hasRealSubscription;
 
   return (
     <main className="max-w-3xl mx-auto px-5 py-8">
@@ -109,17 +115,26 @@ export function ContractorSubscribePage() {
 
       {isActive ? (
         <div className="bg-white border border-border border-t-4 border-t-green rounded px-7 py-7 max-w-md">
-          <span className="font-mono text-[10px] uppercase px-2.5 py-1 rounded-full bg-green-tint text-green">{profile.subscription_status}</span>
-          {profile.subscription_current_period_end && (
+          <span className="font-mono text-[10px] uppercase px-2.5 py-1 rounded-full bg-green-tint text-green">
+            {overrideOnly ? "admin override" : profile.subscription_status}
+          </span>
+          {overrideOnly && (
+            <p className="text-sm text-steel mt-3">
+              An administrator has granted your account full marketplace access without a paid subscription.
+            </p>
+          )}
+          {!overrideOnly && profile.subscription_current_period_end && (
             <p className="text-sm text-steel mt-3">Renews {new Date(profile.subscription_current_period_end).toLocaleDateString()}</p>
           )}
-          <button
-            type="button"
-            onClick={() => portalMutation.mutate()}
-            className="mt-5 border border-navy text-navy hover:bg-navy hover:text-white text-sm font-semibold rounded px-5 py-2.5"
-          >
-            Manage billing
-          </button>
+          {!overrideOnly && (
+            <button
+              type="button"
+              onClick={() => portalMutation.mutate()}
+              className="mt-5 border border-navy text-navy hover:bg-navy hover:text-white text-sm font-semibold rounded px-5 py-2.5"
+            >
+              Manage billing
+            </button>
+          )}
         </div>
       ) : (
         <>

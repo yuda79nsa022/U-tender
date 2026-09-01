@@ -56,6 +56,15 @@ export interface ContractorProfile {
   review_count: number;
   subscription_status: SubscriptionStatus | null;
   subscription_current_period_end: string | null;
+  payment_override_active: boolean;
+  marketplace_status:
+    | "documents_incomplete"
+    | "submitted_for_review"
+    | "changes_requested"
+    | "payment_required"
+    | "payment_restricted"
+    | "verified_active"
+    | "suspended";
   created_at: string;
   email?: string | null;
 }

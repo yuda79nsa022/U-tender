@@ -9,6 +9,7 @@ from app.deps import require_admin
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement
 from app.models.enums import DocumentStatus, VerificationStatus
+from app.models.payment_override import PaymentOverride
 from app.models.review import Review
 from app.models.user import User
 from app.schemas.contractor import ContractorProfileOut, ContractorProfileUpdate
@@ -18,6 +19,7 @@ from app.schemas.document import (
     DocumentRequirementOut,
     ReviewDocumentDecision,
 )
+from app.services.audit import log_action
 from app.services.storage import get_storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -164,7 +166,7 @@ def review_document(payload: ReviewDocumentDecision, admin: User = Depends(requi
 
 
 @router.post("/review/contractors/{contractor_id}/approve", response_model=ContractorProfileOut)
-def approve_contractor(contractor_id: str, db: Session = Depends(get_db)):
+def approve_contractor(contractor_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     docs = (
         db.query(ContractorDocument, DocumentRequirement)
         .join(DocumentRequirement, ContractorDocument.requirement_id == DocumentRequirement.id)
@@ -181,20 +183,40 @@ def approve_contractor(contractor_id: str, db: Session = Depends(get_db)):
     cp = db.get(ContractorProfile, contractor_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Contractor not found.")
+    previous = cp.verification_status.value
     cp.verification_status = VerificationStatus.approved
     db.commit()
     db.refresh(cp)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="verification_status.set",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=previous,
+        new_value=VerificationStatus.approved.value,
+    )
     return cp
 
 
 @router.post("/review/contractors/{contractor_id}/reject", response_model=ContractorProfileOut)
-def reject_application(contractor_id: str, db: Session = Depends(get_db)):
+def reject_application(contractor_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     cp = db.get(ContractorProfile, contractor_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Contractor not found.")
+    previous = cp.verification_status.value
     cp.verification_status = VerificationStatus.changes_requested
     db.commit()
     db.refresh(cp)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="verification_status.set",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=previous,
+        new_value=VerificationStatus.changes_requested.value,
+    )
     return cp
 
 
@@ -261,13 +283,28 @@ class VerificationStatusPatch(BaseModel):
 
 
 @router.post("/contractors/{contractor_id}/verification-status", response_model=ContractorProfileOut)
-def set_verification_status(contractor_id: str, payload: VerificationStatusPatch, db: Session = Depends(get_db)):
+def set_verification_status(
+    contractor_id: str,
+    payload: VerificationStatusPatch,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     cp = db.get(ContractorProfile, contractor_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Contractor not found.")
+    previous = cp.verification_status.value
     cp.verification_status = payload.status
     db.commit()
     db.refresh(cp)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="verification_status.set",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=previous,
+        new_value=payload.status.value,
+    )
     return cp
 
 
@@ -276,14 +313,138 @@ class SuspendPatch(BaseModel):
 
 
 @router.post("/contractors/{contractor_id}/suspend", response_model=ContractorProfileOut)
-def set_suspended(contractor_id: str, payload: SuspendPatch, db: Session = Depends(get_db)):
+def set_suspended(
+    contractor_id: str,
+    payload: SuspendPatch,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     cp = db.get(ContractorProfile, contractor_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Contractor not found.")
+    previous = cp.is_suspended
     cp.is_suspended = payload.suspended
     db.commit()
     db.refresh(cp)
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="contractor.suspend" if payload.suspended else "contractor.reactivate",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=str(previous),
+        new_value=str(payload.suspended),
+    )
     return cp
+
+
+# ---------- payment override (spec P0: admin can activate a verified
+# contractor's marketplace access without a real subscription, but only
+# with a recorded reason — every grant/revoke is audited) ----------
+
+class PaymentOverrideGrant(BaseModel):
+    reason: str
+
+
+@router.post("/contractors/{contractor_id}/payment-override", response_model=ContractorProfileOut)
+def grant_payment_override(
+    contractor_id: str,
+    payload: PaymentOverrideGrant,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    reason = payload.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="A reason is required to grant a payment override.")
+
+    cp = db.get(ContractorProfile, contractor_id)
+    if not cp:
+        raise HTTPException(status_code=404, detail="Contractor not found.")
+
+    previous = cp.payment_override_active
+    db.add(PaymentOverride(contractor_id=contractor_id, granted_by=admin.id, reason=reason))
+    cp.payment_override_active = True
+    db.commit()
+    db.refresh(cp)
+
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="payment_override.grant",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=str(previous),
+        new_value="True",
+        reason=reason,
+    )
+
+    user = db.get(User, contractor_id)
+    return ContractorProfileOut(**_profile_fields(cp), email=user.email if user else None)
+
+
+class PaymentOverrideRevoke(BaseModel):
+    reason: str | None = None
+
+
+@router.post("/contractors/{contractor_id}/payment-override/revoke", response_model=ContractorProfileOut)
+def revoke_payment_override(
+    contractor_id: str,
+    payload: PaymentOverrideRevoke,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    cp = db.get(ContractorProfile, contractor_id)
+    if not cp:
+        raise HTTPException(status_code=404, detail="Contractor not found.")
+
+    previous = cp.payment_override_active
+    active = (
+        db.query(PaymentOverride)
+        .filter(PaymentOverride.contractor_id == contractor_id, PaymentOverride.revoked_at.is_(None))
+        .order_by(PaymentOverride.created_at.desc())
+        .first()
+    )
+    if active:
+        active.revoked_by = admin.id
+        active.revoked_at = datetime.utcnow()
+    cp.payment_override_active = False
+    db.commit()
+    db.refresh(cp)
+
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="payment_override.revoke",
+        target_type="contractor_profile",
+        target_id=contractor_id,
+        previous_value=str(previous),
+        new_value="False",
+        reason=payload.reason,
+    )
+
+    user = db.get(User, contractor_id)
+    return ContractorProfileOut(**_profile_fields(cp), email=user.email if user else None)
+
+
+@router.get("/contractors/{contractor_id}/payment-overrides")
+def list_payment_overrides(contractor_id: str, db: Session = Depends(get_db)):
+    rows = (
+        db.query(PaymentOverride)
+        .filter(PaymentOverride.contractor_id == contractor_id)
+        .order_by(PaymentOverride.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "granted_by": r.granted_by,
+            "reason": r.reason,
+            "created_at": r.created_at,
+            "revoked_by": r.revoked_by,
+            "revoked_at": r.revoked_at,
+        }
+        for r in rows
+    ]
 
 
 # Permanently removes the contractor's account, which cascades through
@@ -331,5 +492,7 @@ def _profile_fields(cp: ContractorProfile) -> dict:
         review_count=cp.review_count,
         subscription_status=cp.subscription_status,
         subscription_current_period_end=cp.subscription_current_period_end,
+        payment_override_active=cp.payment_override_active,
+        marketplace_status=cp.marketplace_status,
         created_at=cp.created_at,
     )

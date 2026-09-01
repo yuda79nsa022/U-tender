@@ -53,13 +53,35 @@ require_contractor = require_role(UserRole.contractor)
 
 # Mirrors middleware.ts's contractor-specific third check: verification and
 # suspension state must be re-derived on every request, not just at login,
-# since an admin can flip either at any time.
+# since an admin can flip either at any time. This is the *verification*
+# gate alone — enough to browse the feed and manage one's own profile, but
+# not enough to see drawings or bid (see require_marketplace_active_contractor
+# below for the P0 rule that adds the payment gate on top of this one).
 def require_approved_contractor(user: User = Depends(require_contractor), db: Session = Depends(get_db)) -> User:
     profile = db.get(ContractorProfile, user.id)
     if not profile or profile.verification_status.value != "approved" or profile.is_suspended:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="not_approved",  # frontend redirects to /contractor/status on this code
+        )
+    return user
+
+
+# THE P0 gate (spec checklist "docs approved but payment absent" /
+# decision D-002/D-003): full marketplace participation — viewing a
+# project's drawings, downloading them, and submitting or revising a bid —
+# requires BOTH an approved verification AND active payment, where "active
+# payment" is a real Stripe subscription OR an admin-granted, audited
+# PaymentOverride. ContractorProfile.is_verified_active is the single
+# source of truth for this; never re-derive the check inline at a call
+# site (that's exactly how the pre-PASS-5 code drifted: submit_offer used
+# to check is_subscribed alone, which silently ignored payment_override_active).
+def require_marketplace_active_contractor(user: User = Depends(require_contractor), db: Session = Depends(get_db)) -> User:
+    profile = db.get(ContractorProfile, user.id)
+    if not profile or not profile.is_verified_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="payment_required",  # frontend redirects to /contractor/subscribe on this code
         )
     return user
 

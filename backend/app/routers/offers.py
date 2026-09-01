@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_contractor_profile, require_approved_contractor
+from app.deps import get_contractor_profile, require_approved_contractor, require_marketplace_active_contractor
 from app.models.enums import OfferStatus, ProjectStatus
 from app.models.offer import Offer
 from app.models.project import Project
@@ -24,12 +24,10 @@ def my_offer(project_id: str, user: User = Depends(require_approved_contractor),
 def submit_offer(
     project_id: str,
     payload: OfferCreate,
-    user: User = Depends(require_approved_contractor),
+    user: User = Depends(require_marketplace_active_contractor),
     db: Session = Depends(get_db),
 ):
     profile = get_contractor_profile(user, db)
-    if not profile.is_subscribed:
-        raise HTTPException(status_code=403, detail="subscription_required")
 
     project = db.get(Project, project_id)
     if not project or project.status != ProjectStatus.open or project.bid_deadline < datetime.utcnow():

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import type { ContractorProfile, Project } from "@/api/types";
@@ -6,6 +6,7 @@ import { formatDeadline, timeRemaining } from "@/lib/format";
 import { QueryError } from "@/components/QueryError";
 
 export function ContractorFeedPage() {
+  const location = useLocation() as { state?: { notice?: string } };
   const { data: profile } = useQuery({
     queryKey: ["contractor-profile"],
     queryFn: () => apiFetch<ContractorProfile>("/contractor/profile"),
@@ -19,7 +20,12 @@ export function ContractorFeedPage() {
     queryFn: () => apiFetch<Project[]>("/contractor/feed"),
   });
 
-  const isSubscribed = profile?.subscription_status === "active" || profile?.subscription_status === "trialing";
+  // marketplace_status is the backend's single derived source of truth for
+  // full access (verification approved AND — real subscription OR admin
+  // override), never the raw subscription_status alone: a contractor with
+  // an admin-granted payment override has no Stripe subscription at all,
+  // but is fully active.
+  const isSubscribed = profile?.marketplace_status === "verified_active";
 
   return (
     <main className="max-w-5xl mx-auto px-5 py-8">
@@ -28,6 +34,10 @@ export function ContractorFeedPage() {
         <h1 className="font-display text-2xl font-semibold text-navy mb-1">Projects open for bidding</h1>
         <p className="text-[13.5px] text-steel">Sorted by closing soonest.</p>
       </div>
+
+      {location.state?.notice && (
+        <p className="text-xs bg-blue-tint text-blue border border-blue rounded px-3 py-2.5 mb-4">{location.state.notice}</p>
+      )}
 
       {!isSubscribed && (
         <div className="bg-blue-tint border border-blue rounded px-5 py-4 mb-6 flex items-center justify-between flex-wrap gap-3">

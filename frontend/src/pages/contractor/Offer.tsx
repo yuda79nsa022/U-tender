@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError, API_URL } from "@/api/client";
 import type { Offer, ProjectDetail } from "@/api/types";
@@ -9,17 +9,35 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 
 export function ContractorOfferPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [timeline, setTimeline] = useState("");
   const [message, setMessage] = useState("");
 
-  const { data: project } = useQuery({
+  const {
+    data: project,
+    isError: projectError,
+  } = useQuery({
     queryKey: ["project", id],
     queryFn: () => apiFetch<ProjectDetail>(`/projects/${id}`),
     enabled: !!id,
   });
+
+  // The backend 404s this endpoint identically whether the project doesn't
+  // exist or this contractor doesn't currently have marketplace access to
+  // it (unpaid, unverified, etc.) — by design, so the response can't be
+  // used to enumerate projects. Land back on the feed with a plain notice
+  // instead of spinning forever.
+  useEffect(() => {
+    if (projectError) {
+      navigate("/contractor/feed", {
+        replace: true,
+        state: { notice: "That project isn't available to you right now." },
+      });
+    }
+  }, [projectError, navigate]);
 
   const { data: existingOffer } = useQuery({
     queryKey: ["my-offer", id],
