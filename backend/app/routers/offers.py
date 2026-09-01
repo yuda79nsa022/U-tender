@@ -58,6 +58,12 @@ def submit_offer(
             status=OfferStatus.submitted,
         )
         db.add(offer)
+    # The tender type is a material term of the tender — once at least one
+    # bid exists, the owner can no longer switch sealed <-> owner-visible
+    # out from under bidders (spec §19-21, D-001). Idempotent: stays locked
+    # on every subsequent revision too.
+    if not project.tender_type_locked:
+        project.tender_type_locked = True
     db.commit()
     db.refresh(offer)
 

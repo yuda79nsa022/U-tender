@@ -15,12 +15,21 @@ from app.schemas.offer import OfferOut
 from app.schemas.project import ProjectOut
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.email import notify_contractor_offer_decision
+from app.services.tender_lifecycle import sync_expired_projects
 
 router = APIRouter(prefix="/owner", tags=["owner"])
 
 
+def _get_owned_project(project_id: str, user: User, db: Session) -> Project:
+    project = db.get(Project, project_id)
+    if not project or project.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return project
+
+
 @router.get("/projects", response_model=list[ProjectOut])
 def dashboard(user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    sync_expired_projects(db)
     projects = (
         db.query(Project).filter(Project.owner_id == user.id).order_by(Project.created_at.desc()).all()
     )
@@ -33,9 +42,7 @@ def dashboard(user: User = Depends(require_owner), db: Session = Depends(get_db)
 
 @router.get("/projects/{project_id}/offers", response_model=list[OfferOut])
 def list_offers(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
-    project = db.get(Project, project_id)
-    if not project or project.owner_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = _get_owned_project(project_id, user, db)
 
     offers = (
         db.query(Offer, ContractorProfile)
@@ -65,11 +72,19 @@ def list_offers(project_id: str, user: User = Depends(require_owner), db: Sessio
 
 @router.post("/projects/{project_id}/offers/{offer_id}/approve", response_model=ProjectOut)
 def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
-    project = db.get(Project, project_id)
-    if not project or project.owner_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found.")
-    if project.status == ProjectStatus.awarded:
-        raise HTTPException(status_code=400, detail="This project has already been awarded.")
+    sync_expired_projects(db)
+    project = _get_owned_project(project_id, user, db)
+    # Awarding is only meaningful once bidding has actually stopped — the
+    # full lifecycle (spec §2.12) makes "open" and "draft" ineligible, not
+    # just "already awarded". A deadline that just passed is caught by the
+    # sync_expired_projects() call above before this check runs.
+    if project.status not in (ProjectStatus.closed, ProjectStatus.under_evaluation):
+        detail = (
+            "This project has already been awarded, canceled, or has no award."
+            if project.status in (ProjectStatus.awarded, ProjectStatus.canceled, ProjectStatus.no_award, ProjectStatus.expired)
+            else "Close bidding before awarding an offer."
+        )
+        raise HTTPException(status_code=400, detail=detail)
 
     winning_offer = db.get(Offer, offer_id)
     if not winning_offer or winning_offer.project_id != project_id:
@@ -99,6 +114,77 @@ def approve_offer(project_id: str, offer_id: str, user: User = Depends(require_o
     db.refresh(project)
     offer_count = db.query(Offer).filter(Offer.project_id == project_id).count()
     return ProjectOut(**_project_fields(project), offer_count=offer_count)
+
+
+# ---------- lifecycle actions (spec §2.12 full tender lifecycle) ----------
+# Every transition below is an explicit owner decision; the only automatic
+# one is open -> closed/expired, handled lazily by sync_expired_projects.
+
+def _project_response(project: Project, db: Session) -> ProjectOut:
+    offer_count = db.query(Offer).filter(Offer.project_id == project.id).count()
+    return ProjectOut(**_project_fields(project), offer_count=offer_count)
+
+
+@router.post("/projects/{project_id}/publish", response_model=ProjectOut)
+def publish_project(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    project = _get_owned_project(project_id, user, db)
+    if project.status != ProjectStatus.draft:
+        raise HTTPException(status_code=400, detail="Only a draft project can be published.")
+    if project.bid_deadline <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Set a bid deadline in the future before publishing.")
+    project.status = ProjectStatus.open
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.post("/projects/{project_id}/close", response_model=ProjectOut)
+def close_project(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    """Manually stop accepting bids before the deadline — e.g. the owner is
+    satisfied with what's in hand and wants to move straight to evaluation."""
+    project = _get_owned_project(project_id, user, db)
+    if project.status != ProjectStatus.open:
+        raise HTTPException(status_code=400, detail="Only an open project can be closed.")
+    project.status = ProjectStatus.closed
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.post("/projects/{project_id}/start-evaluation", response_model=ProjectOut)
+def start_evaluation(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    sync_expired_projects(db)
+    project = _get_owned_project(project_id, user, db)
+    if project.status != ProjectStatus.closed:
+        raise HTTPException(status_code=400, detail="Only a closed project can enter evaluation.")
+    project.status = ProjectStatus.under_evaluation
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.post("/projects/{project_id}/no-award", response_model=ProjectOut)
+def mark_no_award(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    sync_expired_projects(db)
+    project = _get_owned_project(project_id, user, db)
+    if project.status not in (ProjectStatus.closed, ProjectStatus.under_evaluation):
+        raise HTTPException(status_code=400, detail="Only a closed or under-evaluation project can be marked no-award.")
+    project.status = ProjectStatus.no_award
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.post("/projects/{project_id}/cancel", response_model=ProjectOut)
+def cancel_project(project_id: str, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    sync_expired_projects(db)
+    project = _get_owned_project(project_id, user, db)
+    if project.status not in (ProjectStatus.draft, ProjectStatus.open, ProjectStatus.closed, ProjectStatus.under_evaluation):
+        raise HTTPException(status_code=400, detail="This project can no longer be canceled.")
+    project.status = ProjectStatus.canceled
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
 
 
 @router.get("/projects/{project_id}/review", response_model=ReviewOut | None)
@@ -157,5 +243,7 @@ def _project_fields(p: Project) -> dict:
         trade=p.trade,
         bid_deadline=p.bid_deadline,
         status=p.status,
+        tender_type=p.tender_type,
+        tender_type_locked=p.tender_type_locked,
         created_at=p.created_at,
     )

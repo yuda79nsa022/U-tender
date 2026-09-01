@@ -1,4 +1,13 @@
-export type ProjectStatus = "open" | "closed" | "awarded" | "canceled";
+export type ProjectStatus =
+  | "draft"
+  | "open"
+  | "closed"
+  | "under_evaluation"
+  | "awarded"
+  | "no_award"
+  | "canceled"
+  | "expired";
+export type TenderType = "sealed" | "owner_visible";
 export type OfferStatus = "submitted" | "approved" | "rejected" | "withdrawn";
 export type VerificationStatus = "incomplete" | "pending_review" | "changes_requested" | "approved";
 export type DocumentStatus = "not_submitted" | "pending" | "approved" | "rejected";
@@ -13,6 +22,8 @@ export interface Project {
   trade: string | null;
   bid_deadline: string;
   status: ProjectStatus;
+  tender_type: TenderType;
+  tender_type_locked: boolean;
   created_at: string;
   offer_count: number;
   my_offer_status: OfferStatus | null;

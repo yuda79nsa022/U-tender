@@ -16,6 +16,7 @@ from app.schemas.document import ContractorDocumentOut, DocumentRequirementOut
 from app.schemas.project import ProjectOut
 from app.services.file_security import ALLOWED_DOCUMENT_EXTENSIONS, assert_allowed_extension, sanitize_path_segment
 from app.services.storage import get_storage
+from app.services.tender_lifecycle import sync_expired_projects
 
 router = APIRouter(prefix="/contractor", tags=["contractor"])
 
@@ -33,6 +34,7 @@ def feed(user: User = Depends(require_approved_contractor), db: Session = Depend
     # The feed itself requires verification approval (mirrors middleware.ts's
     # contractorGatedPaths) — subscription is a separate, softer gate applied
     # only to drawings and offer submission below, not to seeing the feed.
+    sync_expired_projects(db)
     projects = db.query(Project).filter(Project.status == ProjectStatus.open).order_by(Project.bid_deadline.asc()).all()
     my_offers = {o.project_id: o.status.value for o in db.query(Offer).filter(Offer.contractor_id == user.id).all()}
 
@@ -49,6 +51,8 @@ def feed(user: User = Depends(require_approved_contractor), db: Session = Depend
                 trade=p.trade,
                 bid_deadline=p.bid_deadline,
                 status=p.status,
+                tender_type=p.tender_type,
+                tender_type_locked=p.tender_type_locked,
                 created_at=p.created_at,
                 offer_count=offer_count,
                 my_offer_status=my_offers.get(p.id),

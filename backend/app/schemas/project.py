@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import ProjectStatus
+from app.models.enums import ProjectStatus, TenderType
 
 
 class ProjectCreate(BaseModel):
@@ -11,6 +11,10 @@ class ProjectCreate(BaseModel):
     description: str | None = None
     trade: str | None = None
     bid_deadline: datetime
+    tender_type: TenderType = TenderType.owner_visible
+    # Only these two are valid at creation — every other lifecycle state is
+    # reached later through an explicit owner action, never chosen upfront.
+    status: ProjectStatus = ProjectStatus.open
 
 
 class DrawingOut(BaseModel):
@@ -33,6 +37,8 @@ class ProjectOut(BaseModel):
     trade: str | None
     bid_deadline: datetime
     status: ProjectStatus
+    tender_type: TenderType
+    tender_type_locked: bool
     created_at: datetime
     offer_count: int = 0
     my_offer_status: str | None = None  # only populated on the contractor feed

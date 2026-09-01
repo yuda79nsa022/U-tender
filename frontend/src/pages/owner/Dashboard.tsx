@@ -10,10 +10,14 @@ function badgeClasses(status: string) {
     case "open":
       return "bg-green-tint text-green";
     case "closed":
+    case "under_evaluation":
       return "bg-blue-tint text-blue";
     case "awarded":
       return "bg-amber/15 text-amber-dark";
+    case "draft":
+      return "bg-border text-steel";
     default:
+      // no_award, canceled, expired
       return "bg-red-tint text-red";
   }
 }
@@ -56,7 +60,6 @@ export function OwnerDashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {projects?.map((p) => {
-          const deadlinePassed = new Date(p.bid_deadline) < new Date();
           return (
             <Link key={p.id} to={`/owner/projects/${p.id}`} className="tblock rounded px-5 pt-4">
               <div className="flex justify-between items-start gap-2">
@@ -65,14 +68,12 @@ export function OwnerDashboardPage() {
                   <p className="text-[12.5px] text-steel mb-3">{p.address}</p>
                 </div>
                 <span className={`font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${badgeClasses(p.status)}`}>
-                  {p.status}
+                  {p.status.replace(/_/g, " ")}
                 </span>
               </div>
               <p className="font-mono text-xs text-blue">
                 {p.offer_count} offer{p.offer_count === 1 ? "" : "s"} received
-                {p.status === "open" && deadlinePassed && (
-                  <span className="text-amber-dark"> · deadline passed, ready to review</span>
-                )}
+                {p.status === "closed" && <span className="text-amber-dark"> · ready to review</span>}
               </p>
               <div className="tblock-strip mt-4">
                 <div className="tblock-field">

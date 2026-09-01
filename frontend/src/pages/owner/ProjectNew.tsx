@@ -1,27 +1,33 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, ApiError } from "@/api/client";
-import type { ProjectDetail } from "@/api/types";
+import type { ProjectDetail, TenderType } from "@/api/types";
 
 export function OwnerProjectNewPage() {
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [tenderType, setTenderType] = useState<TenderType>("owner_visible");
 
   const defaultDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const defaultDeadlineValue = new Date(defaultDeadline.getTime() - defaultDeadline.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function submitProject(status: "draft" | "open") {
     setError(null);
+    const formEl = formRef.current;
+    if (!formEl) return;
+    if (!formEl.reportValidity()) return;
 
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     if (!form.get("title") || !form.get("address") || !form.get("bid_deadline")) {
       setError("Title, address, and deadline are required.");
       return;
     }
+    form.set("tender_type", tenderType);
+    form.set("status", status);
 
     setPending(true);
     try {
@@ -45,7 +51,38 @@ export function OwnerProjectNewPage() {
       {error && <p className="text-xs bg-red-tint text-red border border-red rounded px-3 py-2.5 mb-5 max-w-2xl">{error}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 items-start">
-        <form onSubmit={handleSubmit} className="grid gap-[18px]">
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitProject("open");
+          }}
+          className="grid gap-[18px]"
+        >
+          <div>
+            <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Tender type</label>
+            <div className="flex border border-navy rounded overflow-hidden w-fit">
+              <button
+                type="button"
+                onClick={() => setTenderType("owner_visible")}
+                className={`px-4 py-2 text-xs font-mono uppercase ${tenderType === "owner_visible" ? "bg-navy text-white" : "bg-white text-navy"}`}
+              >
+                Owner-visible
+              </button>
+              <button
+                type="button"
+                onClick={() => setTenderType("sealed")}
+                className={`px-4 py-2 text-xs font-mono uppercase border-s border-navy ${tenderType === "sealed" ? "bg-navy text-white" : "bg-white text-navy"}`}
+              >
+                Sealed
+              </button>
+            </div>
+            <p className="text-xs text-steel-light mt-1.5">
+              {tenderType === "sealed"
+                ? "Bids stay hidden from you until bidding closes. Locked in once the first bid arrives."
+                : "You can see bids as they come in. Locked in once the first bid arrives."}
+            </p>
+          </div>
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wide text-steel mb-1.5">Project title</label>
             <input
@@ -91,13 +128,26 @@ export function OwnerProjectNewPage() {
             />
             <p className="text-xs text-steel-light mt-1.5">No offers are accepted after this time.</p>
           </div>
-          <button
-            type="submit"
-            disabled={pending}
-            className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit mt-1"
-          >
-            {pending ? "Posting…" : "Post project"}
-          </button>
+          <div className="flex items-center gap-3 mt-1">
+            <button
+              type="submit"
+              disabled={pending}
+              className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white font-semibold text-sm rounded px-5 py-2.5 w-fit"
+            >
+              {pending ? "Posting…" : "Post project"}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => submitProject("draft")}
+              className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-sm font-semibold rounded px-5 py-2.5 w-fit"
+            >
+              Save as draft
+            </button>
+          </div>
+          <p className="text-xs text-steel-light -mt-2.5">
+            A draft is only visible to you. Publish it later from the project page when you're ready for bids.
+          </p>
         </form>
 
         <div className="bg-white border border-border rounded px-4.5 py-4">

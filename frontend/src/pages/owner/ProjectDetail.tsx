@@ -27,8 +27,12 @@ function statusBadgeClasses(status: string) {
     case "awarded":
       return "bg-amber/15 text-amber-dark";
     case "closed":
+    case "under_evaluation":
       return "bg-blue-tint text-blue";
+    case "draft":
+      return "bg-border text-steel";
     default:
+      // no_award, canceled, expired
       return "bg-red-tint text-red";
   }
 }
@@ -95,6 +99,17 @@ export function OwnerProjectDetailPage() {
     onError: (err) => setError(errorMessage(err, "Could not submit review.")),
   });
 
+  const lifecycleMutation = useMutation({
+    mutationFn: (action: "publish" | "close" | "start-evaluation" | "no-award" | "cancel") =>
+      apiFetch(`/owner/projects/${id}/${action}`, { method: "POST" }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["project", id] });
+      queryClient.invalidateQueries({ queryKey: ["owner-projects"] });
+    },
+    onError: (err) => setError(errorMessage(err, "Could not update this project's status.")),
+  });
+
   if (!project) return <PageLoading />;
 
   const deadlinePassed = new Date(project.bid_deadline) < new Date();
@@ -107,12 +122,73 @@ export function OwnerProjectDetailPage() {
           <h1 className="font-display text-2xl font-semibold text-navy mb-1">Review offers</h1>
           <p className="text-[13.5px] text-steel">{project.address}</p>
         </div>
-        <span className={`font-mono text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full ${statusBadgeClasses(project.status)}`}>
-          {project.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full bg-blue-tint text-steel">
+            {project.tender_type === "sealed" ? "Sealed" : "Owner-visible"}
+          </span>
+          <span className={`font-mono text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full ${statusBadgeClasses(project.status)}`}>
+            {project.status.replace(/_/g, " ")}
+          </span>
+        </div>
       </div>
 
       <ErrorBanner message={error} />
+
+      {(project.status === "draft" ||
+        project.status === "open" ||
+        project.status === "closed" ||
+        project.status === "under_evaluation") && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {project.status === "draft" && (
+            <button
+              type="button"
+              onClick={() => lifecycleMutation.mutate("publish")}
+              disabled={lifecycleMutation.isPending}
+              className="bg-amber hover:bg-amber-dark disabled:opacity-60 text-white text-xs font-semibold rounded px-4 py-2"
+            >
+              Publish — start accepting bids
+            </button>
+          )}
+          {project.status === "open" && (
+            <button
+              type="button"
+              onClick={() => lifecycleMutation.mutate("close")}
+              disabled={lifecycleMutation.isPending}
+              className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-xs font-semibold rounded px-4 py-2"
+            >
+              Close bidding early
+            </button>
+          )}
+          {project.status === "closed" && (
+            <button
+              type="button"
+              onClick={() => lifecycleMutation.mutate("start-evaluation")}
+              disabled={lifecycleMutation.isPending}
+              className="border border-navy text-navy hover:bg-navy hover:text-white disabled:opacity-60 text-xs font-semibold rounded px-4 py-2"
+            >
+              Start evaluation
+            </button>
+          )}
+          {(project.status === "closed" || project.status === "under_evaluation") && (
+            <button
+              type="button"
+              onClick={() => lifecycleMutation.mutate("no-award")}
+              disabled={lifecycleMutation.isPending}
+              className="bg-red-tint text-red text-xs font-semibold rounded px-4 py-2"
+            >
+              Mark no award
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => lifecycleMutation.mutate("cancel")}
+            disabled={lifecycleMutation.isPending}
+            className="text-xs text-red underline disabled:opacity-60"
+          >
+            Cancel project
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6 items-start">
         <div>
@@ -204,7 +280,7 @@ export function OwnerProjectDetailPage() {
                     <td className="py-3 px-2.5 font-mono font-semibold text-navy text-sm">${Number(o.amount).toLocaleString()}</td>
                     <td className="py-3 px-2.5 font-mono text-xs">{o.timeline_estimate || "—"}</td>
                     <td className="py-3 px-2.5">
-                      {project.status === "awarded" ? (
+                      {project.status === "awarded" || project.status === "no_award" ? (
                         <span
                           className={`font-mono text-[10px] uppercase px-2 py-1 rounded-full ${
                             o.status === "approved" ? "bg-green-tint text-green" : "bg-border text-steel"
@@ -212,7 +288,7 @@ export function OwnerProjectDetailPage() {
                         >
                           {o.status}
                         </span>
-                      ) : (
+                      ) : project.status === "closed" || project.status === "under_evaluation" ? (
                         <button
                           type="button"
                           onClick={() => approveMutation.mutate(o.id)}
@@ -221,6 +297,8 @@ export function OwnerProjectDetailPage() {
                         >
                           Approve
                         </button>
+                      ) : (
+                        <span className="font-mono text-[10px] text-steel-light">Close bidding to award</span>
                       )}
                     </td>
                   </tr>

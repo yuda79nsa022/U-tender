@@ -5,13 +5,14 @@ from starlette.responses import StreamingResponse
 from app.db import get_db
 from app.deps import get_current_user
 from app.models.contractor import ContractorProfile
-from app.models.enums import UserRole
+from app.models.enums import ProjectStatus, TenderType, UserRole
 from app.models.offer import Offer
 from app.models.project import Project, ProjectDrawing
 from app.models.user import User
 from app.schemas.project import DrawingOut, ProjectCreate, ProjectDetailOut
 from app.services.drawings import upload_drawings_for_project
 from app.services.storage import drawing_url_expiry_seconds, get_storage
+from app.services.tender_lifecycle import sync_expired_projects
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -30,7 +31,11 @@ def _can_view_project(user: User, project: Project, db: Session) -> bool:
         return True
     if user.role != UserRole.contractor:
         return False
-    if project.status.value not in ("open", "closed", "awarded"):
+    # Draft is the only status a contractor never sees — every other state,
+    # including the newer under_evaluation/no_award/canceled/expired, stays
+    # visible so a contractor who bid can still see what happened to their
+    # bid after bidding itself has ended.
+    if project.status == ProjectStatus.draft:
         return False
     profile = db.get(ContractorProfile, user.id)
     return bool(profile and profile.is_verified_active)
@@ -43,6 +48,8 @@ async def create_project(
     description: str | None = Form(None),
     trade: str | None = Form(None),
     bid_deadline: str = Form(...),
+    tender_type: str = Form("owner_visible"),
+    status: str = Form("open"),
     drawings: list[UploadFile] = File(default=[]),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -52,13 +59,30 @@ async def create_project(
 
     from datetime import datetime
 
+    try:
+        tender_type_value = TenderType(tender_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tender type.")
+
+    # Only these two lifecycle states can be chosen at creation — every
+    # other one is reached later through an explicit owner action.
+    if status not in (ProjectStatus.draft.value, ProjectStatus.open.value):
+        raise HTTPException(status_code=400, detail="A new project must start as draft or open.")
+    status_value = ProjectStatus(status)
+
+    deadline = datetime.fromisoformat(bid_deadline)
+    if status_value == ProjectStatus.open and deadline <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Bid deadline must be in the future.")
+
     project = Project(
         owner_id=user.id,
         title=title,
         address=address,
         description=description or None,
         trade=trade or None,
-        bid_deadline=datetime.fromisoformat(bid_deadline),
+        bid_deadline=deadline,
+        tender_type=tender_type_value,
+        status=status_value,
     )
     db.add(project)
     db.commit()
@@ -74,6 +98,7 @@ async def create_project(
 
 @router.get("/{project_id}", response_model=ProjectDetailOut)
 def get_project(project_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    sync_expired_projects(db)
     project = db.get(Project, project_id)
     if not project or not _can_view_project(user, project, db):
         raise HTTPException(status_code=404, detail="Project not found.")
@@ -156,6 +181,8 @@ def _serialize_detail(project: Project, db: Session) -> ProjectDetailOut:
         trade=project.trade,
         bid_deadline=project.bid_deadline,
         status=project.status,
+        tender_type=project.tender_type,
+        tender_type_locked=project.tender_type_locked,
         created_at=project.created_at,
         offer_count=offer_count,
         drawings=drawings,
