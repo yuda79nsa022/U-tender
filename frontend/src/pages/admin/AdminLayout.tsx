@@ -18,6 +18,9 @@ export function AdminLayout() {
         <NavLink to="/admin/contractors" className={navClass}>
           All contractors
         </NavLink>
+        <NavLink to="/admin/cms" className={navClass}>
+          Website content
+        </NavLink>
       </div>
       <Outlet />
     </div>

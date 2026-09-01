@@ -7,12 +7,14 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import require_admin
 from app.models.audit_log import AuditLog
+from app.models.cms_content import CmsContent
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement
-from app.models.enums import DocumentStatus, VerificationStatus
+from app.models.enums import DocumentStatus, Language, VerificationStatus
 from app.models.payment_override import PaymentOverride
 from app.models.review import Review
 from app.models.user import User
+from app.schemas.cms import CmsContentOut, CmsContentUpsert
 from app.schemas.contractor import ContractorProfileOut, ContractorProfileUpdate
 from app.schemas.document import (
     ContractorDocumentOut,
@@ -506,6 +508,76 @@ def contractor_audit_log(contractor_id: str, db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+
+# ---------- public-site CMS (spec §14, §2.9) ----------
+
+class CmsEntry(BaseModel):
+    key: str
+    en: str
+    ar: str
+
+
+@router.get("/cms", response_model=list[CmsEntry])
+def list_cms(db: Session = Depends(get_db)):
+    from app.routers.public import DEFAULT_CMS
+
+    keys = set(DEFAULT_CMS.keys()) | {row.key for row in db.query(CmsContent.key).distinct().all()}
+    overrides = {(row.key, row.language): row.value for row in db.query(CmsContent).all()}
+
+    def resolve(key: str, lang: Language) -> str:
+        if (key, lang) in overrides:
+            return overrides[(key, lang)]
+        return DEFAULT_CMS.get(key, {}).get(lang.value, "")
+
+    return [CmsEntry(key=k, en=resolve(k, Language.en), ar=resolve(k, Language.ar)) for k in sorted(keys)]
+
+
+@router.put("/cms/{key}/{language}", response_model=CmsContentOut)
+def upsert_cms(
+    key: str, language: Language, payload: CmsContentUpsert, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
+    row = db.query(CmsContent).filter(CmsContent.key == key, CmsContent.language == language).first()
+    previous = row.value if row else None
+    if row:
+        row.value = payload.value
+    else:
+        row = CmsContent(key=key, language=language, value=payload.value)
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    log_action(
+        db,
+        actor_id=admin.id,
+        action="cms.update",
+        target_type="cms_content",
+        target_id=f"{key}:{language.value}",
+        previous_value=previous,
+        new_value=payload.value,
+    )
+    return row
+
+
+@router.delete("/cms/{key}/{language}", status_code=204)
+def reset_cms(key: str, language: Language, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Removes an admin override, reverting the public site back to the
+    built-in default copy for this key/language."""
+    row = db.query(CmsContent).filter(CmsContent.key == key, CmsContent.language == language).first()
+    if row:
+        previous_value = row.value
+        db.delete(row)
+        db.commit()
+        log_action(
+            db,
+            actor_id=admin.id,
+            action="cms.reset",
+            target_type="cms_content",
+            target_id=f"{key}:{language.value}",
+            previous_value=previous_value,
+            new_value=None,
+        )
+    return None
 
 
 # Permanently removes the contractor's account, which cascades through

@@ -24,6 +24,7 @@ import { AdminRequirementsPage } from "@/pages/admin/Requirements";
 import { AdminReviewPage } from "@/pages/admin/Review";
 import { AdminContractorsPage } from "@/pages/admin/Contractors";
 import { AdminContractorDetailPage } from "@/pages/admin/ContractorDetail";
+import { AdminCmsPage } from "@/pages/admin/Cms";
 
 export function App() {
   return (
@@ -112,6 +113,7 @@ export function App() {
           <Route path="review" element={<AdminReviewPage />} />
           <Route path="contractors" element={<AdminContractorsPage />} />
           <Route path="contractors/:id" element={<AdminContractorDetailPage />} />
+          <Route path="cms" element={<AdminCmsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

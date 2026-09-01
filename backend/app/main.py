@@ -14,6 +14,7 @@ from app.routers.files import router as files_router
 from app.routers.offers import router as offers_router
 from app.routers.owner import router as owner_router
 from app.routers.projects import router as projects_router
+from app.routers.public import router as public_router
 
 settings = get_settings()
 
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(public_router)
 app.include_router(projects_router)
 app.include_router(clarifications_router)
 app.include_router(offers_router)
