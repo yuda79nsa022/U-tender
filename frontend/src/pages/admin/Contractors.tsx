@@ -18,6 +18,16 @@ function statusBadge(status: string) {
   }
 }
 
+const MARKETPLACE_BADGE: Record<string, string> = {
+  documents_incomplete: "bg-blue-tint text-steel",
+  submitted_for_review: "bg-amber/15 text-amber-dark",
+  changes_requested: "bg-red-tint text-red",
+  payment_required: "bg-amber/15 text-amber-dark",
+  payment_restricted: "bg-red-tint text-red",
+  verified_active: "bg-green-tint text-green",
+  suspended: "bg-red-tint text-red",
+};
+
 export function AdminContractorsPage() {
   const {
     data: contractors,
@@ -46,7 +56,7 @@ export function AdminContractorsPage() {
             <tr>
               <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Company</th>
               <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Status</th>
-              <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Subscription</th>
+              <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Marketplace access</th>
               <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Rating</th>
               <th className="border-b-2 border-navy py-2 px-2.5"></th>
             </tr>
@@ -66,7 +76,14 @@ export function AdminContractorsPage() {
                     {c.is_suspended && <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded-full bg-red-tint text-red">Suspended</span>}
                   </div>
                 </td>
-                <td className="py-3 px-2.5 font-mono text-xs text-steel">{c.subscription_status || "none"}</td>
+                <td className="py-3 px-2.5">
+                  <span className={`font-mono text-[10px] uppercase px-2 py-0.5 rounded-full ${MARKETPLACE_BADGE[c.marketplace_status] ?? "bg-blue-tint text-steel"}`}>
+                    {c.marketplace_status.replace(/_/g, " ")}
+                  </span>
+                  {c.payment_override_active && (
+                    <span className="block font-mono text-[10px] text-blue mt-1">via admin override</span>
+                  )}
+                </td>
                 <td className="py-3 px-2.5">
                   <span className="text-amber text-[11px]">{stars(Number(c.avg_rating))}</span>{" "}
                   <span className="font-mono text-[11px] text-steel">({c.review_count})</span>

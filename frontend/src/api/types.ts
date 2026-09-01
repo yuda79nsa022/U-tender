@@ -75,6 +75,7 @@ export interface DocumentRequirement {
   description: string | null;
   is_required: boolean;
   is_active: boolean;
+  effective_from: string;
   created_at: string;
 }
 
@@ -86,7 +87,28 @@ export interface ContractorDocument {
   admin_note: string | null;
   reviewed_at: string | null;
   submitted_at: string | null;
+  expires_on: string | null;
   requirement_name: string | null;
   requirement_description: string | null;
   requirement_is_required: boolean | null;
+  requirement_effective_from: string | null;
+}
+
+export interface PaymentOverrideRecord {
+  id: string;
+  granted_by: string;
+  reason: string;
+  created_at: string;
+  revoked_by: string | null;
+  revoked_at: string | null;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  previous_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  created_at: string;
 }

@@ -9,10 +9,26 @@ interface QueueDocument {
   id: string;
   requirement_id: string;
   status: DocumentStatus;
+  submitted_at: string | null;
+  expires_on: string | null;
   requirement_name: string | null;
   requirement_description: string | null;
   requirement_is_required: boolean | null;
+  requirement_effective_from: string | null;
   url: string | null;
+}
+
+function isStale(d: QueueDocument): boolean {
+  if (d.status !== "approved" || !d.submitted_at || !d.requirement_effective_from) return false;
+  return new Date(d.requirement_effective_from) > new Date(d.submitted_at);
+}
+
+function expiryLabel(d: QueueDocument): { text: string; tone: "expired" | "soon" | "ok" } | null {
+  if (d.status !== "approved" || !d.expires_on) return null;
+  const days = Math.floor((new Date(d.expires_on).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return { text: "Expired", tone: "expired" };
+  if (days <= 30) return { text: `Expires in ${days}d`, tone: "soon" };
+  return { text: `Expires ${new Date(d.expires_on).toLocaleDateString()}`, tone: "ok" };
 }
 
 interface QueueEntry {
@@ -146,6 +162,20 @@ export function AdminReviewPage() {
                       ) : (
                         <div className="text-[11.5px] text-steel-light mt-0.5">
                           Not submitted {d.requirement_is_required ? "" : "— optional"}
+                        </div>
+                      )}
+                      {isStale(d) && (
+                        <div className="font-mono text-[10px] text-amber-dark mt-1">
+                          ⚠ requirement changed since this was approved — consider re-review
+                        </div>
+                      )}
+                      {expiryLabel(d) && (
+                        <div
+                          className={`font-mono text-[10px] mt-1 ${
+                            expiryLabel(d)!.tone === "expired" ? "text-red" : expiryLabel(d)!.tone === "soon" ? "text-amber-dark" : "text-steel-light"
+                          }`}
+                        >
+                          {expiryLabel(d)!.text}
                         </div>
                       )}
                     </div>

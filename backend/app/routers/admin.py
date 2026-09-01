@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_admin
+from app.models.audit_log import AuditLog
 from app.models.contractor import ContractorProfile
 from app.models.document import ContractorDocument, DocumentRequirement
 from app.models.enums import DocumentStatus, VerificationStatus
@@ -15,6 +16,7 @@ from app.models.user import User
 from app.schemas.contractor import ContractorProfileOut, ContractorProfileUpdate
 from app.schemas.document import (
     ContractorDocumentOut,
+    DocumentExpiryUpdate,
     DocumentRequirementCreate,
     DocumentRequirementOut,
     ReviewDocumentDecision,
@@ -54,10 +56,29 @@ class RequirementPatch(BaseModel):
 
 
 @router.patch("/requirements/{requirement_id}", response_model=DocumentRequirementOut)
-def patch_requirement(requirement_id: str, payload: RequirementPatch, db: Session = Depends(get_db)):
+def patch_requirement(
+    requirement_id: str, payload: RequirementPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+):
     req = db.get(DocumentRequirement, requirement_id)
     if not req:
         raise HTTPException(status_code=404, detail="Requirement not found.")
+    # A requirement newly turning mandatory (optional -> required) changes
+    # what "compliant" means — bumping effective_from lets the review UI
+    # flag any already-approved document that was submitted under the old,
+    # looser terms as due for a fresh look (spec §48 versioning). Toggling
+    # the other direction, or is_active alone, doesn't retroactively affect
+    # anyone, so it doesn't move the date.
+    if payload.is_required is True and req.is_required is False:
+        req.effective_from = datetime.utcnow()
+        log_action(
+            db,
+            actor_id=admin.id,
+            action="requirement.made_required",
+            target_type="document_requirement",
+            target_id=requirement_id,
+            previous_value="False",
+            new_value="True",
+        )
     if payload.is_required is not None:
         req.is_required = payload.is_required
     if payload.is_active is not None:
@@ -96,20 +117,7 @@ def review_queue(db: Session = Depends(get_db)):
         storage = get_storage()
         result.append(
             {
-                "contractor": ContractorProfileOut(
-                    user_id=cp.user_id,
-                    company_name=cp.company_name,
-                    license_number=cp.license_number,
-                    primary_trade=cp.primary_trade,
-                    service_area=cp.service_area,
-                    verification_status=cp.verification_status,
-                    is_suspended=cp.is_suspended,
-                    avg_rating=cp.avg_rating,
-                    review_count=cp.review_count,
-                    subscription_status=cp.subscription_status,
-                    subscription_current_period_end=cp.subscription_current_period_end,
-                    created_at=cp.created_at,
-                ),
+                "contractor": ContractorProfileOut(**_profile_fields(cp), email=None),
                 "documents": [
                     {
                         **ContractorDocumentOut(
@@ -120,9 +128,11 @@ def review_queue(db: Session = Depends(get_db)):
                             admin_note=d.admin_note,
                             reviewed_at=d.reviewed_at,
                             submitted_at=d.submitted_at,
+                            expires_on=d.expires_on,
                             requirement_name=r.name,
                             requirement_description=r.description,
                             requirement_is_required=r.is_required,
+                            requirement_effective_from=r.effective_from,
                         ).model_dump(),
                         "url": storage.signed_url("contractor-documents", d.file_path, expiry) if d.file_path else None,
                     }
@@ -150,6 +160,8 @@ def review_document(payload: ReviewDocumentDecision, admin: User = Depends(requi
     doc.admin_note = (payload.note or "Document rejected — please re-upload.") if payload.decision == DocumentStatus.rejected else None
     doc.reviewed_by = admin.id
     doc.reviewed_at = datetime.utcnow()
+    if payload.decision == DocumentStatus.approved:
+        doc.expires_on = payload.expires_on
     db.commit()
 
     # A single rejected document sends the whole application back to
@@ -163,6 +175,31 @@ def review_document(payload: ReviewDocumentDecision, admin: User = Depends(requi
 
     db.refresh(doc)
     return doc
+
+
+@router.patch("/documents/{document_id}/expiry", response_model=ContractorDocumentOut)
+def set_document_expiry(document_id: str, payload: DocumentExpiryUpdate, db: Session = Depends(get_db)):
+    doc = db.get(ContractorDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    doc.expires_on = payload.expires_on
+    db.commit()
+    db.refresh(doc)
+    requirement = db.get(DocumentRequirement, doc.requirement_id)
+    return ContractorDocumentOut(
+        id=doc.id,
+        contractor_id=doc.contractor_id,
+        requirement_id=doc.requirement_id,
+        status=doc.status,
+        admin_note=doc.admin_note,
+        reviewed_at=doc.reviewed_at,
+        submitted_at=doc.submitted_at,
+        expires_on=doc.expires_on,
+        requirement_name=requirement.name if requirement else None,
+        requirement_description=requirement.description if requirement else None,
+        requirement_is_required=requirement.is_required if requirement else None,
+        requirement_effective_from=requirement.effective_from if requirement else None,
+    )
 
 
 @router.post("/review/contractors/{contractor_id}/approve", response_model=ContractorProfileOut)
@@ -251,9 +288,11 @@ def contractor_detail(contractor_id: str, db: Session = Depends(get_db)):
                 admin_note=d.admin_note,
                 reviewed_at=d.reviewed_at,
                 submitted_at=d.submitted_at,
+                expires_on=d.expires_on,
                 requirement_name=r.name,
                 requirement_description=r.description,
                 requirement_is_required=r.is_required,
+                requirement_effective_from=r.effective_from,
             )
             for d, r in docs
         ],
@@ -442,6 +481,28 @@ def list_payment_overrides(contractor_id: str, db: Session = Depends(get_db)):
             "created_at": r.created_at,
             "revoked_by": r.revoked_by,
             "revoked_at": r.revoked_at,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/contractors/{contractor_id}/audit-log")
+def contractor_audit_log(contractor_id: str, db: Session = Depends(get_db)):
+    rows = (
+        db.query(AuditLog)
+        .filter(AuditLog.target_type == "contractor_profile", AuditLog.target_id == contractor_id)
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "actor_id": r.actor_id,
+            "action": r.action,
+            "previous_value": r.previous_value,
+            "new_value": r.new_value,
+            "reason": r.reason,
+            "created_at": r.created_at,
         }
         for r in rows
     ]

@@ -80,9 +80,11 @@ def list_documents(user: User = Depends(require_contractor), db: Session = Depen
             admin_note=d.admin_note,
             reviewed_at=d.reviewed_at,
             submitted_at=d.submitted_at,
+            expires_on=d.expires_on,
             requirement_name=r.name,
             requirement_description=r.description,
             requirement_is_required=r.is_required,
+            requirement_effective_from=r.effective_from,
         )
         for d, r in rows
     ]
@@ -116,6 +118,7 @@ async def upload_document(
     doc.status = DocumentStatus.pending
     doc.submitted_at = datetime.utcnow()
     doc.admin_note = None  # clear any prior rejection note on re-upload
+    doc.expires_on = None  # a fresh submission needs a fresh review before any expiry applies
     db.commit()
     db.refresh(doc)
 
@@ -128,9 +131,11 @@ async def upload_document(
         admin_note=doc.admin_note,
         reviewed_at=doc.reviewed_at,
         submitted_at=doc.submitted_at,
+        expires_on=doc.expires_on,
         requirement_name=requirement.name if requirement else None,
         requirement_description=requirement.description if requirement else None,
         requirement_is_required=requirement.is_required if requirement else None,
+        requirement_effective_from=requirement.effective_from if requirement else None,
     )
 
 
