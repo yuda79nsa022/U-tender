@@ -21,6 +21,35 @@ interface Review {
   created_at: string;
 }
 
+function EvaluationSummary({ offers }: { offers: Offer[] }) {
+  const active = offers.filter((o) => o.status !== "withdrawn" && o.amount !== null);
+  if (active.length < 2) return null;
+
+  const amounts = active.map((o) => Number(o.amount));
+  const low = Math.min(...amounts);
+  const high = Math.max(...amounts);
+  const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+
+  return (
+    <div className="grid grid-cols-3 gap-2.5 mb-4">
+      <div className="border border-border bg-white rounded px-3 py-2.5">
+        <div className="font-display text-lg font-semibold text-green leading-none">${low.toLocaleString()}</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Lowest bid</div>
+      </div>
+      <div className="border border-border bg-white rounded px-3 py-2.5">
+        <div className="font-display text-lg font-semibold text-navy leading-none">
+          ${Math.round(avg).toLocaleString()}
+        </div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Average bid</div>
+      </div>
+      <div className="border border-border bg-white rounded px-3 py-2.5">
+        <div className="font-display text-lg font-semibold text-steel leading-none">${high.toLocaleString()}</div>
+        <div className="font-mono text-[9.5px] uppercase tracking-wide text-steel mt-1">Highest bid</div>
+      </div>
+    </div>
+  );
+}
+
 function DrawingHistory({ projectId }: { projectId: string }) {
   const { data: history } = useQuery({
     queryKey: ["drawing-history", projectId],
@@ -305,7 +334,9 @@ export function OwnerProjectDetailPage() {
               </p>
             </div>
           ) : (
-            <table className="w-full border-collapse">
+            <>
+              <EvaluationSummary offers={offers} />
+              <table className="w-full border-collapse">
               <thead>
                 <tr>
                   <th className="font-mono text-[10px] uppercase tracking-wide text-steel text-left border-b-2 border-navy py-2 px-2.5">Contractor</th>
@@ -358,7 +389,8 @@ export function OwnerProjectDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </>
           )}
         </div>
       </div>

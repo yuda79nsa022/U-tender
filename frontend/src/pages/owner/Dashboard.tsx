@@ -1,7 +1,8 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
-import type { Project } from "@/api/types";
+import type { Project, ProjectStatus } from "@/api/types";
 import { formatDeadline } from "@/lib/format";
 import { QueryError } from "@/components/QueryError";
 
@@ -22,6 +23,27 @@ function badgeClasses(status: string) {
   }
 }
 
+const STATUS_FILTERS: { value: ProjectStatus | "all"; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "draft", label: "Draft" },
+  { value: "open", label: "Open" },
+  { value: "closed", label: "Awaiting review" },
+  { value: "under_evaluation", label: "Under evaluation" },
+  { value: "awarded", label: "Awarded" },
+  { value: "no_award", label: "No award" },
+  { value: "canceled", label: "Canceled" },
+  { value: "expired", label: "Expired" },
+];
+
+function KpiCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+  return (
+    <div className={`border rounded px-4 py-3 ${highlight ? "border-amber bg-amber/10" : "border-border bg-white"}`}>
+      <div className="font-display text-2xl font-semibold text-navy leading-none">{value}</div>
+      <div className="font-mono text-[10px] uppercase tracking-wide text-steel mt-1">{label}</div>
+    </div>
+  );
+}
+
 export function OwnerDashboardPage() {
   const {
     data: projects,
@@ -31,6 +53,33 @@ export function OwnerDashboardPage() {
     queryKey: ["owner-projects"],
     queryFn: () => apiFetch<Project[]>("/owner/projects"),
   });
+
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
+  const [tenderTypeFilter, setTenderTypeFilter] = useState<"all" | "sealed" | "owner_visible">("all");
+  const [search, setSearch] = useState("");
+
+  const kpis = useMemo(() => {
+    const list = projects ?? [];
+    return {
+      open: list.filter((p) => p.status === "open").length,
+      awaitingReview: list.filter((p) => p.status === "closed").length,
+      underEvaluation: list.filter((p) => p.status === "under_evaluation").length,
+      awarded: list.filter((p) => p.status === "awarded").length,
+      totalOffers: list.reduce((sum, p) => sum + p.offer_count, 0),
+    };
+  }, [projects]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (projects ?? []).filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (tenderTypeFilter !== "all" && p.tender_type !== tenderTypeFilter) return false;
+      if (term && !p.title.toLowerCase().includes(term) && !p.address.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [projects, statusFilter, tenderTypeFilter, search]);
+
+  const filtersActive = statusFilter !== "all" || tenderTypeFilter !== "all" || !!search.trim();
 
   return (
     <main className="max-w-5xl mx-auto px-5 py-8">
@@ -46,6 +95,16 @@ export function OwnerDashboardPage() {
         </Link>
       </div>
 
+      {!!projects?.length && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+          <KpiCard label="Open" value={kpis.open} />
+          <KpiCard label="Awaiting review" value={kpis.awaitingReview} highlight={kpis.awaitingReview > 0} />
+          <KpiCard label="Under evaluation" value={kpis.underEvaluation} />
+          <KpiCard label="Awarded" value={kpis.awarded} />
+          <KpiCard label="Total offers" value={kpis.totalOffers} />
+        </div>
+      )}
+
       {isError && <QueryError onRetry={() => refetch()} />}
 
       {!isError && !projects?.length && (
@@ -58,8 +117,45 @@ export function OwnerDashboardPage() {
         </div>
       )}
 
+      {!!projects?.length && (
+        <div className="flex flex-wrap items-center gap-2.5 mb-5">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title or address…"
+            className="border border-border rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | "all")}
+            className="border border-border rounded px-3 py-2 text-sm font-mono"
+          >
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={tenderTypeFilter}
+            onChange={(e) => setTenderTypeFilter(e.target.value as "all" | "sealed" | "owner_visible")}
+            className="border border-border rounded px-3 py-2 text-sm font-mono"
+          >
+            <option value="all">All tender types</option>
+            <option value="sealed">Sealed</option>
+            <option value="owner_visible">Owner-visible</option>
+          </select>
+        </div>
+      )}
+
+      {!isError && projects?.length && !filtered.length && (
+        <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
+          {filtersActive ? "No projects match your filters." : "Nothing here."}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {projects?.map((p) => {
+        {filtered.map((p) => {
           return (
             <Link key={p.id} to={`/owner/projects/${p.id}`} className="tblock rounded px-5 pt-4">
               <div className="flex justify-between items-start gap-2">
@@ -67,9 +163,14 @@ export function OwnerDashboardPage() {
                   <h3 className="font-display font-semibold text-[16.5px] mb-0.5">{p.title}</h3>
                   <p className="text-[12.5px] text-steel mb-3">{p.address}</p>
                 </div>
-                <span className={`font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${badgeClasses(p.status)}`}>
-                  {p.status.replace(/_/g, " ")}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${badgeClasses(p.status)}`}>
+                    {p.status.replace(/_/g, " ")}
+                  </span>
+                  {p.tender_type === "sealed" && (
+                    <span className="font-mono text-[9px] uppercase text-steel-light">sealed</span>
+                  )}
+                </div>
               </div>
               <p className="font-mono text-xs text-blue">
                 {p.offer_count} offer{p.offer_count === 1 ? "" : "s"} received
