@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
@@ -7,17 +8,33 @@ import { QueryError } from "@/components/QueryError";
 
 export function ContractorFeedPage() {
   const location = useLocation() as { state?: { notice?: string } };
+  const [search, setSearch] = useState("");
+  const [trade, setTrade] = useState("");
+  const [sort, setSort] = useState<"deadline" | "newest">("deadline");
+
   const { data: profile } = useQuery({
     queryKey: ["contractor-profile"],
     queryFn: () => apiFetch<ContractorProfile>("/contractor/profile"),
   });
+
+  const { data: trades } = useQuery({
+    queryKey: ["contractor-feed-trades"],
+    queryFn: () => apiFetch<string[]>("/contractor/feed/trades"),
+  });
+
   const {
     data: projects,
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["contractor-feed"],
-    queryFn: () => apiFetch<Project[]>("/contractor/feed"),
+    queryKey: ["contractor-feed", search, trade, sort],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (trade) params.set("trade", trade);
+      params.set("sort", sort);
+      return apiFetch<Project[]>(`/contractor/feed?${params.toString()}`);
+    },
   });
 
   // marketplace_status is the backend's single derived source of truth for
@@ -26,13 +43,14 @@ export function ContractorFeedPage() {
   // an admin-granted payment override has no Stripe subscription at all,
   // but is fully active.
   const isSubscribed = profile?.marketplace_status === "verified_active";
+  const filtersActive = !!search.trim() || !!trade;
 
   return (
     <main className="max-w-5xl mx-auto px-5 py-8">
       <div className="mb-6">
         <span className="font-mono text-[10.5px] uppercase tracking-widest text-amber-dark block mb-1">Contractor · Open projects</span>
         <h1 className="font-display text-2xl font-semibold text-navy mb-1">Projects open for bidding</h1>
-        <p className="text-[13.5px] text-steel">Sorted by closing soonest.</p>
+        <p className="text-[13.5px] text-steel">{sort === "newest" ? "Sorted by most recently posted." : "Sorted by closing soonest."}</p>
       </div>
 
       {location.state?.notice && (
@@ -48,11 +66,40 @@ export function ContractorFeedPage() {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2.5 mb-5">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, address, or scope…"
+          className="border border-border rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
+        />
+        <select
+          value={trade}
+          onChange={(e) => setTrade(e.target.value)}
+          className="border border-border rounded px-3 py-2 text-sm font-mono"
+        >
+          <option value="">All trades</option>
+          {trades?.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "deadline" | "newest")}
+          className="border border-border rounded px-3 py-2 text-sm font-mono"
+        >
+          <option value="deadline">Closing soonest</option>
+          <option value="newest">Newest first</option>
+        </select>
+      </div>
+
       {isError && <QueryError onRetry={() => refetch()} />}
 
       {!isError && !projects?.length && (
         <div className="border border-dashed border-border rounded p-10 text-center text-sm text-steel">
-          No open projects right now. Check back soon.
+          {filtersActive ? "No projects match your filters." : "No open projects right now. Check back soon."}
         </div>
       )}
 

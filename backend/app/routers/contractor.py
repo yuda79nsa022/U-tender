@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -30,12 +31,27 @@ def active_requirements(user: User = Depends(require_contractor), db: Session = 
 
 
 @router.get("/feed", response_model=list[ProjectOut])
-def feed(user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
+def feed(
+    trade: str | None = None,
+    search: str | None = None,
+    sort: str = "deadline",  # "deadline" (closing soonest, default) | "newest"
+    user: User = Depends(require_approved_contractor),
+    db: Session = Depends(get_db),
+):
     # The feed itself requires verification approval (mirrors middleware.ts's
     # contractorGatedPaths) — subscription is a separate, softer gate applied
     # only to drawings and offer submission below, not to seeing the feed.
     sync_expired_projects(db)
-    projects = db.query(Project).filter(Project.status == ProjectStatus.open).order_by(Project.bid_deadline.asc()).all()
+    query = db.query(Project).filter(Project.status == ProjectStatus.open)
+
+    if trade and trade.strip():
+        query = query.filter(Project.trade.ilike(f"%{trade.strip()}%"))
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(Project.title.ilike(term), Project.address.ilike(term), Project.description.ilike(term)))
+
+    query = query.order_by(Project.created_at.desc()) if sort == "newest" else query.order_by(Project.bid_deadline.asc())
+    projects = query.all()
     my_offers = {o.project_id: o.status.value for o in db.query(Offer).filter(Offer.contractor_id == user.id).all()}
 
     out = []
@@ -59,6 +75,21 @@ def feed(user: User = Depends(require_approved_contractor), db: Session = Depend
             )
         )
     return out
+
+
+@router.get("/feed/trades", response_model=list[str])
+def feed_trades(user: User = Depends(require_approved_contractor), db: Session = Depends(get_db)):
+    """Distinct trades among currently open projects, for populating the
+    feed's filter control — only values actually worth filtering by."""
+    sync_expired_projects(db)
+    rows = (
+        db.query(Project.trade)
+        .filter(Project.status == ProjectStatus.open, Project.trade.isnot(None))
+        .distinct()
+        .order_by(Project.trade.asc())
+        .all()
+    )
+    return [r[0] for r in rows if r[0]]
 
 
 @router.get("/profile", response_model=ContractorProfileOut)
