@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -7,6 +7,12 @@ import { NotificationBell } from "@/components/NotificationBell";
 export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref: string }) {
   const { logout } = useAuth();
   const { t } = useI18n();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-5 pt-6">
@@ -30,7 +36,7 @@ export function AppHeader({ roleLabel, homeHref }: { roleLabel: string; homeHref
           <Link to="/account" className="text-xs text-steel hover:text-navy underline whitespace-nowrap">
             {t("header.account")}
           </Link>
-          <button type="button" onClick={() => logout()} className="text-xs text-steel hover:text-navy underline whitespace-nowrap">
+          <button type="button" onClick={() => handleLogout()} className="text-xs text-steel hover:text-navy underline whitespace-nowrap">
             {t("header.logOut")}
           </button>
         </div>
