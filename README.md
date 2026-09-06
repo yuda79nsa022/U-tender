@@ -21,7 +21,14 @@ frontend/   React 18 + Vite + TypeScript + React Router + TanStack Query
 
 ## Setup
 
-**With Docker (easiest):**
+**Windows, one click:** install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+if you haven't already, make sure it's running, then double-click
+`install.bat` in the repo root. It creates `backend/.env` for you (with
+random secrets already filled in) and starts everything. Safe to run
+again any time — it won't overwrite an existing `.env`, and it's how you
+start the app back up after a reboot too.
+
+**With Docker (any OS):**
 
 ```
 cp backend/.env.example backend/.env
