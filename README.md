@@ -41,6 +41,16 @@ This starts MySQL, runs the Alembic migration automatically on backend
 startup, and serves the API on `http://localhost:8000` and the frontend on
 `http://localhost:5173`.
 
+**Deploying to a real server:** SSH in (e.g. with PuTTY on Windows), clone
+this repo, and run `./deploy.sh` from the repo root. It installs Docker if
+needed, detects the server's public IP, creates `backend/.env` with that
+IP filled in and random secrets generated, then builds and starts a
+production setup: the frontend as a real nginx-served build (not the dev
+server `docker-compose.yml` uses) on port 80, and MySQL is not published
+to the internet at all — see `docker-compose.prod.yml` for exactly what
+changes. Safe to run again later; it's also how you start the app back up
+after a reboot.
+
 **Without Docker:**
 
 1. **Database** — run a local MySQL 8.x instance and create a database/user

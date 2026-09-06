@@ -1,0 +1,34 @@
+# Production overrides, applied on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+#
+# What changes from the dev setup:
+#   - mysql is no longer published to the host at all -- only the backend
+#     container can reach it, over Docker's internal network (still as
+#     "mysql:3306", same as in dev). Publishing 3306 straight onto a
+#     public server would put a database with default-looking credentials
+#     directly on the internet.
+#   - frontend is a real production build served by nginx (Dockerfile.prod)
+#     instead of the "vite dev" dev server, and listens on 80 instead of
+#     5173 -- the port a plain http://your-server-ip URL uses by default.
+#   - VITE_API_URL is supplied as a build arg (PUBLIC_API_URL from the
+#     shell environment) since Vite bakes it into the built JS at build
+#     time; see frontend/Dockerfile.prod for why that's a build arg and
+#     not a runtime environment variable here.
+services:
+  mysql:
+    ports: !reset []
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL}
+    # Lists merge by appending in Compose overrides by default, so without
+    # !override here the container would end up with both the dev port
+    # (5173, which nginx doesn't even listen on) and the prod one (80).
+    # !reset clears a value to empty; !override replaces it outright --
+    # this needs the latter, since it's being replaced with 80, not cleared.
+    environment: !reset {}
+    ports: !override
+      - "80:80"
