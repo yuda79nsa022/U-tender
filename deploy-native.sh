@@ -37,7 +37,16 @@ fail() { echo; echo -e "\033[31mERROR: $*\033[0m"; exit 1; }
 
 step "Checking prerequisites"
 apt-get update -qq
-apt-get install -y -qq python3-venv python3-pip build-essential libssl-dev default-mysql-client >/dev/null
+apt-get install -y -qq python3-venv python3-pip build-essential libssl-dev >/dev/null
+# A control panel like CloudPanel manages (and holds) its own MySQL client
+# packages, so asking apt for a generic one here can trigger a dependency
+# conflict on a server that already has one -- only bother installing it
+# when nothing calling itself "mysql" is on PATH yet.
+if ! command -v mysql >/dev/null 2>&1; then
+    apt-get install -y -qq default-mysql-client >/dev/null \
+        || apt-get install -y -qq mysql-client >/dev/null \
+        || fail "Couldn't install a MySQL client automatically. Install one manually (matching whatever MySQL server this box already runs) and re-run."
+fi
 if ! command -v node >/dev/null 2>&1; then
     warn "Node.js isn't installed -- installing Node 20 via NodeSource."
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
