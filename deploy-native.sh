@@ -151,6 +151,19 @@ http_port="$(grep -m1 '^PUBLIC_HTTP_PORT=' "$env_file" | cut -d= -f2)"
 api_port="$(grep -m1 '^PUBLIC_API_PORT=' "$env_file" | cut -d= -f2)"
 mkdir -p "$repo_root/backend/storage"
 
+# A server that already hosts other sites often has ufw locked down to a
+# specific allowlist of ports rather than wide open -- confirmed on the
+# real target server this script was built against, where the app was
+# unreachable from outside until these two were opened by hand. Doing it
+# here means a fresh deploy (or a re-run that lands on new ports) doesn't
+# need that manual step. `ufw allow` is idempotent -- safe to repeat.
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "^Status: active"; then
+    step "Opening the app's ports in ufw"
+    ufw allow "${http_port}/tcp" >/dev/null
+    ufw allow "${api_port}/tcp" >/dev/null
+    ok "Allowed ${http_port}/tcp and ${api_port}/tcp through the firewall."
+fi
+
 step "Setting up the backend (Python virtualenv, migrations)"
 cd "$repo_root/backend"
 [ -d .venv ] || python3 -m venv .venv
